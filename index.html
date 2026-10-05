@@ -44,6 +44,12 @@ button:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visi
 .lvl-title span { font-weight: 400; opacity: .8; margin-right: 8px; }
 .top button { background: transparent; border: 2px solid rgba(255,255,255,.35); color: #fff; border-radius: 10px; padding: 6px 14px; font-weight: 700; }
 .top button:hover { border-color: var(--yellow); }
+.top .report-btn { background: var(--yellow); color: var(--navy); border-color: var(--yellow); }
+.form-row { display: flex; flex-direction: column; gap: 4px; margin: 10px 0; }
+.form-row label { font-weight: 700; }
+.form-row input { font: inherit; padding: 9px 10px; border-radius: 9px; border: 2px solid var(--line); background: var(--panel); color: var(--ink); }
+.rep-status { min-height: 24px; margin-top: 10px; font-weight: 700; color: var(--navy); }
+:root[data-theme="dark"] .rep-status { color: var(--yellow); }
 .top button[disabled], .btn[disabled] { opacity: .5; cursor: not-allowed; }
 .medals { font-size: 15px; white-space: nowrap; }
 
@@ -208,6 +214,7 @@ table.res td.mono { font-family: var(--mono); white-space: pre-line; }
   <div class="medals" id="medalCount" aria-live="polite"></div>
   <button id="btnLevels">Levels</button>
   <button id="btnHelp">Handbook</button>
+  <button id="btnReport" class="report-btn" hidden>📄 Report</button>
 </header>
 
 <main class="wrap">
@@ -251,6 +258,15 @@ table.res td.mono { font-family: var(--mono); white-space: pre-line; }
 <div class="overlay" id="ovLevels"><div class="modal">
   <div class="modal-head"><h2>Choose a level</h2><button class="close" data-close>Close</button></div>
   <div id="levelGrid"></div>
+</div></div>
+
+<div class="overlay" id="ovReport"><div class="modal" style="max-width:480px">
+  <div class="modal-head"><h2>Progress report</h2><button class="close" data-close>Close</button></div>
+  <p id="repSummary"></p>
+  <div class="form-row"><label for="repName">Your name</label><input id="repName" autocomplete="name" maxlength="60"></div>
+  <div class="form-row"><label for="repClass">Class</label><input id="repClass" maxlength="20" placeholder="e.g. 10X/Cs1"></div>
+  <button class="btn btn-primary" id="repGo">Download PDF</button>
+  <div class="rep-status" id="repStatus" aria-live="polite"></div>
 </div></div>
 
 <div class="overlay" id="ovWin"><div class="modal win" id="winBox"></div></div>
@@ -300,6 +316,7 @@ age = int(input("Age: "))    # cast to an integer: 15</pre>
   <p>Your code runs with the same rules and error messages as real Python 3. Prompts inside <code>input("...")</code> appear in the console but are not checked. If you use valid Python that the game does not cover yet (such as lists or while loops), it tells you so rather than calling it an error.</p>
 </div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script>
 // ===== Python Park interpreter: a subset of Python 3.12 with matching semantics and error messages =====
 const PY = (() => {
@@ -1364,8 +1381,9 @@ const SKIN = ["#F2C7A0", "#C98E62", "#8A5A3B", "#F6D7B8", "#A86E48"];
 
 // ================= STORAGE =================
 const KEY = "pythonpark.v2";
-let save = { medals: {}, code: {}, current: 1 };
+let save = { medals: {}, code: {}, current: 1, solved: {}, runs: {}, student: { name: "", cls: "" } };
 try { const raw = localStorage.getItem(KEY); if (raw) save = Object.assign(save, JSON.parse(raw)); } catch (e) {}
+save.solved = save.solved || {}; save.runs = save.runs || {}; save.student = save.student || { name: "", cls: "" };
 const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} };
 
 // ================= EDITOR =================
@@ -1539,7 +1557,8 @@ let running = false;
 async function runLevel() {
   if (running) return;
   const lv = level, code = ta.value;
-  running = true; ["btnRun", "btnLevels", "btnReset"].forEach(id => $(id).disabled = true); consoleEl.innerHTML = ""; errLine.style.display = "none";
+  running = true; ["btnRun", "btnLevels", "btnReset", "btnReport"].forEach(id => $(id).disabled = true); consoleEl.innerHTML = ""; errLine.style.display = "none";
+  save.runs[lv.id] = (save.runs[lv.id] || 0) + 1; persist();
   try {
     const runs = lv.tests.map(t => PY.run(code, t.inputs, { noMoreInput: lv.noMoreInput }));
     if (runs[0].parseError) { showError(runs[0].error, lv); renderResults(lv, null, runs, "Fix the error shown in the console, then run again."); return; }
@@ -1628,7 +1647,7 @@ async function runLevel() {
       const train = stage && stage.querySelector(".train"); if (train) { await sleep(200); train.classList.add("go"); }
       confetti(); await sleep(900); win(lv, code);
     }
-  } finally { running = false; ["btnRun", "btnLevels", "btnReset"].forEach(id => $(id).disabled = false); }
+  } finally { running = false; ["btnRun", "btnLevels", "btnReset", "btnReport"].forEach(id => $(id).disabled = false); }
 }
 function describe(lv, t) {
   if (lv.mode === "single") return "the rider with " + valueTag(lv.kind, t.inputs[0]).replace(/^Age /, "age ").replace(/^Bag /, "a bag of ").replace(/^Code /, "code ");
@@ -1698,7 +1717,7 @@ function renderLevels() {
 }
 function win(lv, code) {
   const m = medalFor(lv, code), n = codeLines(code);
-  if (!save.medals[lv.id] || rank[m] > rank[save.medals[lv.id]]) save.medals[lv.id] = m;
+  if (!save.medals[lv.id] || rank[m] >= rank[save.medals[lv.id]]) { save.medals[lv.id] = m; save.solved[lv.id] = { code, lines: n, medal: m, when: new Date().toISOString() }; }
   persist(); updateMedals();
   const nextLv = LEVELS.find(l => l.id === lv.id + 1);
   $("winBox").innerHTML = `<h2>Level complete</h2><div class="medal">${MEDAL[m]}</div>
@@ -1721,6 +1740,109 @@ function confetti() {
   }
 }
 
+// ================= REPORT (PDF download) =================
+let downloads = null;
+(async () => {
+  try { if (window.claude && typeof window.claude.use === "function") downloads = await window.claude.use("downloads"); } catch (e) { downloads = null; }
+  if (downloads) $("btnReport").hidden = false;
+})();
+function openReport() {
+  $("repName").value = save.student.name || ""; $("repClass").value = save.student.cls || "";
+  const done = LEVELS.filter(l => save.medals[l.id]).length;
+  $("repSummary").textContent = `${done} of ${LEVELS.length} levels completed.`;
+  $("repStatus").textContent = ""; openOv("ovReport"); $("repName").focus();
+}
+async function buildPdf(name, cls) {
+  const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(`Python Park report: ${name}`); pdf.setAuthor(name);
+  const F = { r: await pdf.embedFont(StandardFonts.Helvetica), b: await pdf.embedFont(StandardFonts.HelveticaBold), c: await pdf.embedFont(StandardFonts.Courier) };
+  const PW = 595.28, PH = 841.89, M = 46, CW = PW - 2 * M;
+  const C = { navy: rgb(28 / 255, 37 / 255, 65 / 255), gold: rgb(1, 201 / 255, 60 / 255), red: rgb(214 / 255, 40 / 255, 57 / 255), grey: rgb(90 / 255, 96 / 255, 120 / 255), black: rgb(0, 0, 0), white: rgb(1, 1, 1), band: rgb(238 / 255, 243 / 255, 248 / 255), zebra: rgb(246 / 255, 248 / 255, 251 / 255), codebg: rgb(244 / 255, 245 / 255, 249 / 255) };
+  // keep only characters the standard PDF fonts can draw
+  const clean = s => String(s).replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/\t/g, "    ").replace(/[^\x20-\x7E\u00A0-\u00FF£€…–—]/g, "?");
+  let page, y;
+  const newPage = () => { page = pdf.addPage([PW, PH]); y = PH - 50; };
+  const need = h => { if (y - h < 50) newPage(); };
+  const text = (t, x, size, font = F.r, color = C.black, opts = {}) => {
+    t = clean(t); let xx = x;
+    if (opts.right) xx = x - font.widthOfTextAtSize(t, size);
+    if (opts.center) xx = x - font.widthOfTextAtSize(t, size) / 2;
+    page.drawText(t, { x: xx, y, size, font, color });
+  };
+  const wrap = (t, font, size, width) => {
+    t = clean(t); if (font.widthOfTextAtSize(t, size) <= width) return [t];
+    const out = []; let cur = "";
+    for (const ch of t) { if (font.widthOfTextAtSize(cur + ch, size) > width) { out.push(cur); cur = ch; } else cur += ch; }
+    if (cur) out.push(cur); return out;
+  };
+  newPage();
+  page.drawRectangle({ x: 0, y: PH - 86, width: PW, height: 86, color: C.navy });
+  y = PH - 44; text("Python Park: Ride Operator", M, 24, F.b, C.gold);
+  y = PH - 68; text("Progress report", M, 13, F.r, C.white);
+  y = PH - 120;
+  const now = new Date();
+  const field = (label, value) => { text(label, M, 12, F.b); text(value || "-", M + 60, 12); y -= 19; };
+  field("Name:", name); field("Class:", cls);
+  field("Date:", now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + ", " + now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
+  const medals = Object.values(save.medals); const cnt = k => medals.filter(x => x === k).length;
+  const done = LEVELS.filter(l => save.medals[l.id]).length;
+  y -= 6; page.drawRectangle({ x: M, y: y - 14, width: CW, height: 36, color: C.band });
+  y -= 1; text(`Levels completed: ${done} of ${LEVELS.length}`, M + 12, 14, F.b, C.navy);
+  text(`Gold ${cnt("gold")}   Silver ${cnt("silver")}   Bronze ${cnt("bronze")}`, PW - M - 12, 14, F.b, C.navy, { right: true });
+  y -= 46;
+  const cols = [[0, "Level"], [44, "Title"], [190, "Topic"], [345, "Medal"], [420, "Lines"], [462, "Runs"]];
+  page.drawRectangle({ x: M, y: y - 6, width: CW, height: 22, color: C.navy });
+  cols.forEach(([x, t]) => text(t, M + x + 5, 10.5, F.b, C.white)); y -= 21;
+  LEVELS.forEach((l, i) => {
+    need(20);
+    if (i % 2 === 0) page.drawRectangle({ x: M, y: y - 6, width: CW, height: 19, color: C.zebra });
+    const s = save.solved[l.id], m = save.medals[l.id];
+    const row = [String(l.id), l.title, l.zone, m ? m[0].toUpperCase() + m.slice(1) : "Not completed", s ? String(s.lines) : "-", String(save.runs[l.id] || 0)];
+    row.forEach((t, j) => text(t, M + cols[j][0] + 5, 10, j === 3 && m ? F.b : F.r, j === 3 && !m ? C.grey : C.black));
+    y -= 19;
+  });
+  const solvedLevels = LEVELS.filter(l => save.solved[l.id]);
+  y -= 14; need(30);
+  text("My code for each completed level", M, 15, F.b, C.navy); y -= 8;
+  if (!solvedLevels.length) { y -= 16; text("No levels completed yet.", M, 11, F.r, C.grey); }
+  for (const l of solvedLevels) {
+    const s = save.solved[l.id]; const lines = s.code.replace(/\s+$/, "").split("\n");
+    need(Math.min(lines.length, 24) * 13 + 40); y -= 22;
+    text(`Level ${l.id}: ${l.title}  (${s.medal}, ${s.lines} line${s.lines === 1 ? "" : "s"})`, M, 12, F.b, C.red); y -= 6;
+    lines.forEach((ln, k) => {
+      wrap(ln || " ", F.c, 9.5, CW - 34).forEach((w, wi) => {
+        need(14); y -= 13;
+        page.drawRectangle({ x: M, y: y - 3.5, width: CW, height: 13, color: C.codebg });
+        if (wi === 0) text(String(k + 1).padStart(2, " "), M + 5, 9.5, F.c, C.grey);
+        text(w, M + 28, 9.5, F.c, C.black);
+      });
+    });
+  }
+  const pages = pdf.getPages();
+  pages.forEach((p, i) => { page = p; y = 26; text(`${name || "Student"}  |  Python Park report  |  Page ${i + 1} of ${pages.length}`, PW / 2, 9, F.r, C.grey, { center: true }); });
+  return await pdf.save();
+}
+async function downloadReport() {
+  const name = $("repName").value.trim(), cls = $("repClass").value.trim(), status = $("repStatus");
+  if (!name) { status.textContent = "Type your name first."; $("repName").focus(); return; }
+  save.student = { name, cls }; persist();
+  if (!window.PDFLib) { status.textContent = "The PDF maker did not load. Check your internet connection and reload the page."; return; }
+  if (!downloads) { status.textContent = "Downloads are not available here. Open Python Park from its link and try again."; return; }
+  const btn = $("repGo"); btn.disabled = true; status.textContent = "Making your PDF…";
+  try {
+    const data = await buildPdf(name, cls);
+    const safe = name.replace(/[^A-Za-z0-9 _-]/g, "").trim().replace(/\s+/g, "_") || "student";
+    await downloads.save({ filename: `Python_Park_Report_${safe}.pdf`, data });
+    status.textContent = "Saved. Now upload the PDF to Google Classroom.";
+  } catch (e) {
+    const code = e && e.code;
+    status.textContent = code === "declined" ? "Download cancelled. Press Download PDF to try again."
+      : code === "rate_limited" ? "A download is already waiting for you to confirm." : "The download did not work in this view.";
+  } finally { btn.disabled = false; }
+}
+$("btnReport").addEventListener("click", openReport);
+$("repGo").addEventListener("click", downloadReport);
 $("btnRun").addEventListener("click", runLevel);
 $("btnReset").addEventListener("click", () => { if (confirm("Reset this level's code to the starting code?")) { ta.value = level.starter; delete save.code[level.id]; persist(); refresh(); } });
 $("btnHint").addEventListener("click", () => $("hintBox").classList.toggle("show"));
