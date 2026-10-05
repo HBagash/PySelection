@@ -214,7 +214,7 @@ table.res td.mono { font-family: var(--mono); white-space: pre-line; }
   <div class="medals" id="medalCount" aria-live="polite"></div>
   <button id="btnLevels">Levels</button>
   <button id="btnHelp">Handbook</button>
-  <button id="btnReport" class="report-btn" hidden>📄 Report</button>
+  <button id="btnReport" class="report-btn">📄 Report</button>
 </header>
 
 <main class="wrap">
@@ -1744,7 +1744,16 @@ function confetti() {
 let downloads = null;
 (async () => {
   try { if (window.claude && typeof window.claude.use === "function") downloads = await window.claude.use("downloads"); } catch (e) { downloads = null; }
-  if (downloads) $("btnReport").hidden = false;
+  if (!downloads && !window.claude) {
+    // standalone copy (opened from a file or hosted elsewhere): use a normal browser download
+    downloads = { save: async ({ filename, data }) => {
+      const url = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
+      const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      return { status: "saved" };
+    } };
+  }
+
 })();
 function openReport() {
   $("repName").value = save.student.name || ""; $("repClass").value = save.student.cls || "";
@@ -1827,8 +1836,8 @@ async function downloadReport() {
   const name = $("repName").value.trim(), cls = $("repClass").value.trim(), status = $("repStatus");
   if (!name) { status.textContent = "Type your name first."; $("repName").focus(); return; }
   save.student = { name, cls }; persist();
+  if (!downloads) { status.textContent = "Downloads are blocked in this view. Open Python Park in Chrome or Edge (or from its link), then press Report again."; return; }
   if (!window.PDFLib) { status.textContent = "The PDF maker did not load. Check your internet connection and reload the page."; return; }
-  if (!downloads) { status.textContent = "Downloads are not available here. Open Python Park from its link and try again."; return; }
   const btn = $("repGo"); btn.disabled = true; status.textContent = "Making your PDF…";
   try {
     const data = await buildPdf(name, cls);
