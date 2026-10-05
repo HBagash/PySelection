@@ -1,0 +1,1735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Python Park: Ride Operator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Bungee&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #D62839; --yellow: #FFC93C; --navy: #1C2541; --sky: #BEE9FF; --green: #2E9E5B; --grass: #7CC77F;
+  --bg: #EEF3F8; --panel: #FFFFFF; --ink: #1C2541; --muted: #55607A; --line: #D5DCE6;
+  --editor: #232838; --editor-ink: #F3F4F8; --gutter: #7C849A;
+  --ok: #1F8A4C; --bad: #C0283A; --okbg: #E5F5EB; --badbg: #FCE8EA;
+  --sign: "Bungee", "Arial Black", Impact, sans-serif;
+  --body: "Atkinson Hyperlegible", Verdana, Arial, sans-serif;
+  --mono: "Atkinson Hyperlegible Mono", "Courier New", monospace;
+  --code-size: 19px; --code-lh: 28px;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12172A; --panel: #1B2238; --ink: #EEF1F8; --muted: #A9B2C7; --line: #2E3753;
+    --okbg: #163323; --badbg: #3A1820; --ok: #5FD38F; --bad: #FF7A88;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12172A; --panel: #1B2238; --ink: #EEF1F8; --muted: #A9B2C7; --line: #2E3753;
+  --okbg: #163323; --badbg: #3A1820; --ok: #5FD38F; --bad: #FF7A88;
+}
+*, *::before, *::after { box-sizing: inherit; }
+html { height: 100%; scroll-padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.45; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+
+/* ---------- top bar ---------- */
+.top { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: var(--navy); color: #fff; flex-wrap: wrap; }
+.brand { font-family: var(--sign); font-size: 22px; letter-spacing: .5px; color: var(--yellow); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.brand small { font-family: var(--body); font-size: 14px; color: #fff; opacity: .85; letter-spacing: 0; }
+.lvl-title { font-size: 19px; font-weight: 700; flex: 1; min-width: 200px; }
+.lvl-title span { font-weight: 400; opacity: .8; margin-right: 8px; }
+.top button { background: transparent; border: 2px solid rgba(255,255,255,.35); color: #fff; border-radius: 10px; padding: 6px 14px; font-weight: 700; }
+.top button:hover { border-color: var(--yellow); }
+.top button[disabled], .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.medals { font-size: 15px; white-space: nowrap; }
+
+/* ---------- layout ---------- */
+.wrap { display: grid; grid-template-columns: minmax(0, 46fr) minmax(0, 54fr); gap: 16px; padding: 16px 18px 24px; max-width: 1500px; margin: 0 auto; }
+@media (max-width: 980px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+
+/* mission */
+.mission { padding: 16px 18px; }
+.mission h2 { margin: 0 0 6px; font-size: 22px; }
+.story { margin: 0 0 10px; color: var(--muted); }
+.task { margin: 0; padding-left: 22px; }
+.mode { margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; background: var(--bg); border-left: 4px solid var(--navy); font-size: 15px; }
+.mode.queue { border-left-color: var(--green); }
+.task li { margin: 3px 0; }
+.chips { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 15px; }
+.chip { font-family: var(--mono); font-weight: 600; background: var(--yellow); color: var(--navy); padding: 2px 10px; border-radius: 6px; font-size: 16px; }
+
+/* editor */
+.editor-card { margin-top: 14px; overflow: hidden; background: var(--editor); border-radius: 14px; border: 1px solid #000; }
+.editor-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; color: #C9CEDC; font-size: 14px; border-bottom: 1px solid #343a4f; }
+.editor { position: relative; display: flex; min-height: 300px; max-height: 470px; overflow: auto; }
+.gutter { padding: 12px 10px 12px 12px; color: var(--gutter); font-family: var(--mono); font-size: var(--code-size); line-height: var(--code-lh); text-align: right; user-select: none; min-width: 44px; white-space: pre; flex: none; }
+.code-area { position: relative; flex: 1; min-width: 0; }
+.code-area pre, .code-area textarea {
+  margin: 0; padding: 12px 14px 12px 6px; font-family: var(--mono); font-size: var(--code-size); line-height: var(--code-lh);
+  white-space: pre; tab-size: 4; border: 0; width: 100%; min-height: 100%; overflow: hidden; letter-spacing: 0;
+}
+.code-area pre { position: absolute; inset: 0; color: var(--editor-ink); pointer-events: none; }
+.code-area textarea { position: relative; display: block; resize: none; background: transparent; color: transparent; caret-color: #fff; outline: none; }
+.code-area textarea::selection { background: rgba(255,201,60,.35); color: transparent; }
+.err-line { position: absolute; left: 0; right: 0; height: var(--code-lh); background: rgba(214,40,57,.35); border-left: 4px solid var(--red); pointer-events: none; display: none; }
+.tok-kw { color: #FF7AC6; } .tok-fn { color: #6EF5A0; } .tok-num { color: #C9A7FF; } .tok-str { color: #FFE27A; } .tok-com { color: #8A93AD; font-style: italic; } .tok-op { color: #FFFFFF; }
+.indent-guide { background: rgba(255,255,255,.07); }
+.actions { display: flex; gap: 10px; padding: 12px 14px; border-top: 1px solid #343a4f; flex-wrap: wrap; }
+.btn { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 17px; }
+.btn-run { background: var(--green); color: #fff; min-width: 120px; }
+.btn-run:hover { filter: brightness(1.08); }
+.btn-run[disabled] { opacity: .6; cursor: wait; }
+.btn-ghost { background: #343a4f; color: #fff; }
+.btn-ghost:hover { background: #41485f; }
+.speed { margin-left: auto; color: #C9CEDC; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.speed select { background: #343a4f; color: #fff; border: 0; border-radius: 8px; padding: 6px 8px; font: inherit; }
+.hint { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: #FFF4CF; color: #4A3B00; border: 1px solid #F0D486; }
+.hint.show { display: block; }
+
+/* ---------- scene ---------- */
+.scene { position: relative; height: 300px; overflow: hidden; border-radius: 14px; background: linear-gradient(#BEE9FF 0%, #DDF3FF 70%); border: 1px solid var(--line); }
+.ground { position: absolute; left: 0; right: 0; bottom: 0; height: 46px; background: var(--grass); border-top: 6px solid #5DAF61; }
+.path { position: absolute; left: 0; right: 22%; bottom: 0; height: 46px; background: repeating-linear-gradient(90deg, #E9D9B5 0 38px, #E0CDA3 38px 40px); border-top: 6px solid #CDB687; }
+.track { position: absolute; right: -10px; bottom: 40px; width: 52%; height: 230px; pointer-events: none; }
+.queue-label { position: absolute; left: 14px; top: 10px; font-family: var(--sign); font-size: 13px; color: var(--navy); background: rgba(255,255,255,.75); padding: 3px 10px; border-radius: 6px; }
+
+/* measuring sign: the hero */
+.sign { position: absolute; left: 47%; bottom: 46px; width: 118px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; }
+.sign-board { background: var(--yellow); border: 4px solid var(--navy); border-radius: 10px; padding: 8px 8px 10px; text-align: center; box-shadow: 0 4px 0 rgba(28,37,65,.25); }
+.sign-board .s1 { font-family: var(--sign); font-size: 11px; color: var(--navy); line-height: 1.15; }
+.sign-board .s2 { font-family: var(--sign); font-size: 21px; color: var(--red); line-height: 1.05; margin-top: 4px; word-break: break-word; }
+.sign-post { width: 10px; background: var(--navy); flex: 1; }
+.measure { position: absolute; left: calc(47% - 82px); bottom: 46px; width: 22px; border: 3px solid var(--navy); border-bottom: 0; background: repeating-linear-gradient(#fff 0 10px, #F2F2F2 10px 20px); border-radius: 6px 6px 0 0; display: none; }
+.measure .mark { position: absolute; left: -14px; right: -60px; height: 0; border-top: 4px dashed var(--red); }
+.measure .mark span { position: absolute; left: -12px; top: -24px; font-family: var(--sign); font-size: 12px; color: var(--red); background: rgba(255,255,255,.85); padding: 0 4px; border-radius: 4px; }
+
+/* riders */
+.rider { position: absolute; bottom: 46px; width: 46px; display: flex; flex-direction: column; align-items: center; transition: left .55s ease, transform .55s ease, opacity .55s ease; }
+.rider .tag { font-family: var(--mono); font-weight: 600; font-size: 12px; background: #fff; color: var(--navy); border: 2px solid var(--navy); border-radius: 6px; padding: 0 3px; margin-bottom: 4px; white-space: nowrap; }
+.rider .head { width: 26px; height: 26px; border-radius: 50%; background: #F2C7A0; border: 3px solid var(--navy); position: relative; z-index: 1; }
+.rider .head::after { content: ""; position: absolute; left: 5px; top: 8px; width: 3px; height: 3px; background: var(--navy); border-radius: 50%; box-shadow: 8px 0 0 var(--navy); }
+.rider .body { width: 34px; border: 3px solid var(--navy); border-radius: 12px 12px 4px 4px; margin-top: -3px; }
+.rider .bubble { position: absolute; bottom: 100%; margin-bottom: 6px; left: 50%; transform: translateX(-50%) scale(.6); opacity: 0; background: #fff; border: 3px solid var(--navy); border-radius: 10px; padding: 2px 9px; font-family: var(--mono); font-weight: 600; font-size: 16px; white-space: nowrap; transition: all .25s ease; color: var(--navy); }
+.rider .bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+.rider .verdict { position: absolute; top: -34px; left: -20px; width: 28px; height: 28px; border-radius: 50%; display: none; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 17px; border: 2px solid #fff; }
+.rider .verdict.ok { display: flex; background: var(--ok); } .rider .verdict.bad { display: flex; background: var(--bad); }
+.rider.away { transform: translate(-30px, 40px); opacity: 0; }
+
+/* train */
+.train { position: absolute; bottom: 52px; right: 3%; display: flex; gap: 4px; transition: transform 1.6s cubic-bezier(.6,0,.4,1); }
+.car { width: 58px; height: 38px; background: var(--red); border: 3px solid var(--navy); border-radius: 8px 18px 8px 8px; position: relative; display: flex; align-items: flex-start; justify-content: center; gap: 4px; padding-top: 0; }
+.car::before, .car::after { content: ""; position: absolute; bottom: -10px; width: 14px; height: 14px; border-radius: 50%; background: var(--navy); border: 3px solid #fff; }
+.car::before { left: 6px; } .car::after { right: 6px; }
+.car .seat { width: 20px; height: 20px; border-radius: 50%; margin-top: -16px; background: #F2C7A0; border: 3px solid var(--navy); opacity: 0; transform: translateY(8px); transition: all .3s ease; }
+.car .seat.on { opacity: 1; transform: none; }
+.car .num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--sign); font-size: 18px; color: #fff; opacity: .35; }
+.car .num.lit { opacity: 1; color: var(--yellow); text-shadow: 0 0 8px rgba(255,201,60,.9); }
+.train.go { transform: translateX(140%); }
+
+/* entrance board (level 1) */
+.board { position: absolute; left: 50%; top: 34px; transform: translateX(-50%); width: min(78%, 460px); text-align: center; }
+.board .arch { background: var(--navy); color: var(--yellow); font-family: var(--sign); font-size: 15px; padding: 6px; border-radius: 14px 14px 0 0; }
+.board .screen { background: #0E1426; border: 6px solid var(--navy); border-top: 0; min-height: 84px; display: flex; align-items: center; justify-content: center; font-family: var(--sign); font-size: 34px; color: #3a4466; padding: 8px 10px; word-break: break-word; }
+.board .screen.lit { color: var(--yellow); text-shadow: 0 0 12px rgba(255,201,60,.8); }
+.board .posts { display: flex; justify-content: space-between; padding: 0 30px; }
+.board .posts i { width: 12px; height: 120px; background: var(--navy); display: block; }
+.scoreboard { position: absolute; right: 16px; top: 14px; background: var(--navy); color: var(--yellow); font-family: var(--sign); font-size: 15px; padding: 6px 12px; border-radius: 10px; display: none; }
+.scoreboard b { font-size: 22px; margin-left: 6px; }
+
+/* results */
+.results { margin-top: 14px; padding: 14px 16px; }
+.results h3, .console-card h3 { margin: 0 0 8px; font-size: 17px; }
+.res-empty { color: var(--muted); margin: 0; }
+table.res { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.res th { text-align: left; color: var(--muted); font-weight: 700; padding: 4px 6px; border-bottom: 2px solid var(--line); }
+table.res td { padding: 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.res td.mono { font-family: var(--mono); white-space: pre-line; }
+.pill { display: inline-block; padding: 0 8px; border-radius: 999px; font-weight: 700; font-size: 13px; }
+.pill.ok { background: var(--okbg); color: var(--ok); } .pill.bad { background: var(--badbg); color: var(--bad); }
+.tdtype { color: var(--muted); font-size: 13px; }
+.feedback { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--badbg); color: var(--ink); border-left: 5px solid var(--bad); display: none; }
+.feedback.show { display: block; }
+.feedback.good { background: var(--okbg); border-left-color: var(--ok); }
+
+.console-card { margin-top: 14px; padding: 14px 16px; }
+.console { background: #0E1426; color: #E8EBF4; border-radius: 10px; padding: 10px 12px; font-family: var(--mono); font-size: 16px; min-height: 70px; max-height: 210px; overflow: auto; white-space: pre-wrap; }
+.console .in { color: #8FA2C9; } .console .in b { color: #FFE27A; font-weight: 600; }
+.console .err { color: #FF8A96; font-weight: 600; }
+.console .tip { color: #FFE27A; }
+.console .sep { color: #56607E; }
+
+/* overlays */
+.overlay { position: fixed; inset: 0; background: rgba(12,17,32,.6); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.overlay.show { display: flex; }
+.modal { background: var(--panel); color: var(--ink); border-radius: 18px; max-width: 920px; width: 100%; max-height: 90vh; overflow: auto; padding: 20px 22px; border: 1px solid var(--line); }
+.modal h2 { margin: 0 0 12px; font-family: var(--sign); font-weight: 400; color: var(--red); font-size: 26px; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.close { background: transparent; border: 2px solid var(--line); color: var(--ink); border-radius: 10px; padding: 4px 12px; font-weight: 700; }
+.zone { margin: 14px 0 6px; font-weight: 700; color: var(--muted); }
+.levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.lvl { text-align: left; background: var(--bg); border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--ink); }
+.lvl:hover { border-color: var(--red); }
+.lvl.current { border-color: var(--navy); box-shadow: inset 0 0 0 2px var(--navy); }
+.lvl .n { font-family: var(--sign); color: var(--red); font-size: 15px; }
+.lvl .t { font-weight: 700; display: block; }
+.lvl .m { font-size: 14px; color: var(--muted); }
+.win { text-align: center; max-width: 460px; }
+.win .medal { font-size: 72px; line-height: 1; margin: 6px 0; }
+.win p { margin: 6px 0; }
+.win .btn { margin-top: 12px; }
+.btn-primary { background: var(--red); color: #fff; }
+.handbook h3 { margin: 18px 0 6px; }
+.handbook table { border-collapse: collapse; width: 100%; font-size: 16px; }
+.handbook td, .handbook th { border: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+.handbook code, .handbook pre { font-family: var(--mono); }
+.handbook pre { background: var(--editor); color: var(--editor-ink); padding: 10px 12px; border-radius: 10px; overflow-x: auto; font-size: 16px; line-height: 1.5; }
+.callout { border: 2px solid var(--red); border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
+.callout strong { color: var(--red); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+
+.confetti { position: fixed; top: -12px; width: 10px; height: 14px; z-index: 60; pointer-events: none; animation: fall 1.8s ease-in forwards; }
+@keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .9; } }
+@media (prefers-reduced-motion: reduce) {
+  .rider, .train, .car .seat, .rider .bubble { transition-duration: .01s !important; }
+  .confetti { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">🎢 Python Park <small>Ride operator</small></div>
+  <div class="lvl-title" id="lvlTitle"></div>
+  <div class="medals" id="medalCount" aria-live="polite"></div>
+  <button id="btnLevels">Levels</button>
+  <button id="btnHelp">Handbook</button>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="panel mission" id="mission"></div>
+    <div class="editor-card">
+      <div class="editor-head"><span>Python code</span><span>Ctrl + Enter to run</span></div>
+      <div class="editor" id="editorScroll">
+        <div class="gutter" id="gutter">1</div>
+        <div class="code-area">
+          <div class="err-line" id="errLine"></div>
+          <pre id="hl" aria-hidden="true"></pre>
+          <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="Python code editor"></textarea>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-run" id="btnRun">▶ Run</button>
+        <button class="btn btn-ghost" id="btnReset">Reset code</button>
+        <button class="btn btn-ghost" id="btnHint">Hint</button>
+        <label class="speed">Speed
+          <select id="speed"><option value="1">Normal</option><option value="0.45">Fast</option></select>
+        </label>
+      </div>
+    </div>
+    <div class="hint" id="hintBox"></div>
+  </section>
+
+  <section>
+    <div class="scene" id="scene" aria-label="Ride queue animation"></div>
+    <div class="panel results" id="results">
+      <h3>Test riders</h3>
+      <p class="res-empty">Press Run to test your program with every rider in the queue.</p>
+    </div>
+    <div class="panel console-card">
+      <h3>Console</h3>
+      <div class="console" id="console" aria-live="polite"></div>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="ovLevels"><div class="modal">
+  <div class="modal-head"><h2>Choose a level</h2><button class="close" data-close>Close</button></div>
+  <div id="levelGrid"></div>
+</div></div>
+
+<div class="overlay" id="ovWin"><div class="modal win" id="winBox"></div></div>
+
+<div class="overlay" id="ovHelp"><div class="modal handbook">
+  <div class="modal-head"><h2>Operator handbook</h2><button class="close" data-close>Close</button></div>
+  <div class="callout"><strong>= or ==?</strong> One <code>=</code> assigns a value: <code>age = 15</code>. Two <code>==</code> compare two values: <code>if age == 15:</code></div>
+  <div class="callout"><strong>&gt; or &gt;=?</strong> "18 and over" includes 18, so use <code>age &gt;= 18</code>. <code>age &gt; 18</code> turns away an 18-year-old.</div>
+  <h3>Comparison operators</h3>
+  <table>
+    <tr><th>Operator</th><th>Meaning</th><th>Example that is True</th></tr>
+    <tr><td><code>==</code></td><td>equal to</td><td><code>5 == 5</code></td></tr>
+    <tr><td><code>!=</code></td><td>not equal to</td><td><code>5 != 3</code></td></tr>
+    <tr><td><code>&lt;</code></td><td>less than</td><td><code>3 &lt; 5</code></td></tr>
+    <tr><td><code>&gt;</code></td><td>greater than</td><td><code>5 &gt; 3</code></td></tr>
+    <tr><td><code>&lt;=</code></td><td>less than or equal to</td><td><code>5 &lt;= 5</code></td></tr>
+    <tr><td><code>&gt;=</code></td><td>greater than or equal to</td><td><code>5 &gt;= 5</code></td></tr>
+  </table>
+  <p>A condition always evaluates to <code>True</code> or <code>False</code>.</p>
+  <div class="cols">
+    <div><h3>IF and ELSE</h3>
+<pre>if height &gt;= 120:
+    print("RIDE")
+else:
+    print("STOP")</pre>
+      <p>The colon <code>:</code> ends the if and else lines. The indented lines only run when that branch is chosen.</p></div>
+    <div><h3>FOR loop</h3>
+<pre>for i in range(5):
+    height = int(input())
+    print(height)</pre>
+      <p><code>range(5)</code> repeats 5 times. <code>range(1, 7)</code> gives 1 to 6: start is included, stop is excluded.</p></div>
+  </div>
+  <h3>Data types</h3>
+  <table>
+    <tr><th>Type</th><th>Python name</th><th>Example</th><th>Cast with</th></tr>
+    <tr><td>Integer</td><td><code>int</code></td><td><code>15</code></td><td><code>int("15")</code></td></tr>
+    <tr><td>Real</td><td><code>float</code></td><td><code>4.5</code></td><td><code>float("4.5")</code></td></tr>
+    <tr><td>String</td><td><code>str</code></td><td><code>"VIP"</code></td><td><code>str(15)</code></td></tr>
+    <tr><td>Boolean</td><td><code>bool</code></td><td><code>True</code> or <code>False</code></td><td>a condition, e.g. <code>height &gt;= 120</code></td></tr>
+  </table>
+  <p><code>print(type(x))</code> shows the data type of <code>x</code>. <code>len(text)</code> gives the number of characters in a string.</p>
+  <h3>Input and casting</h3>
+<pre>age = input("Age: ")         # a string, e.g. "15"
+age = int(input("Age: "))    # cast to an integer: 15</pre>
+  <p><code>input()</code> always returns a string. Cast with <code>int()</code> or <code>float()</code> before comparing with a number or doing maths.</p>
+  <h3>How Python Park checks your code</h3>
+  <p>Your code runs with the same rules and error messages as real Python 3. Prompts inside <code>input("...")</code> appear in the console but are not checked. If you use valid Python that the game does not cover yet (such as lists or while loops), it tells you so rather than calling it an error.</p>
+</div></div>
+
+<script>
+// ===== Python Park interpreter: a subset of Python 3.12 with matching semantics and error messages =====
+const PY = (() => {
+  class PyErr extends Error {
+    constructor(type, msg, line, hint) { super(type + ": " + msg); this.type = type; this.msg = msg; this.line = line; this.hint = hint || ""; }
+  }
+  // Valid Python that Python Park does not run. Never disguised as a Python error.
+  const unsupported = (what, line, hint) => new PyErr("NotSupported", what + " is valid Python, but Python Park does not support it.", line, hint || "");
+  class BreakSig {} class ContinueSig {}
+
+  const RESERVED = new Set(["False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"]);
+  const UNSUP_KW = { while: "A while loop", def: "Defining a function with def", return: "return", import: "import", from: "import", class: "class", try: "try/except", except: "try/except", finally: "try/except", with: "with", lambda: "lambda", global: "global", nonlocal: "nonlocal", del: "del", assert: "assert", raise: "raise", yield: "yield", async: "async", await: "await", as: "as" };
+
+  // ---------- tokenizer ----------
+  function tokenize(src) {
+    const lines = src.replace(/\r\n?/g, "\n").split("\n");
+    const toks = []; const push = (type, value, line) => toks.push({ type, value, line });
+    const stack = [{ col: 0, alt: 0 }];
+    let depth = 0, cont = false; const opens = [];
+    for (let li = 0; li < lines.length; li++) {
+      const ln = li + 1, raw = lines[li];
+      let i = 0;
+      if (depth === 0 && !cont) {
+        let col = 0, alt = 0;
+        while (i < raw.length && (raw[i] === " " || raw[i] === "\t" || raw[i] === "\f")) {
+          if (raw[i] === " ") { col++; alt++; } else if (raw[i] === "\t") { col = (Math.floor(col / 8) + 1) * 8; alt++; } else { col = 0; alt = 0; }
+          i++;
+        }
+        const rest = raw.slice(i);
+        if (rest === "" || rest.startsWith("#")) continue;
+        const top = stack[stack.length - 1];
+        if (col === top.col) { if (alt !== top.alt) throw new PyErr("TabError", "inconsistent use of tabs and spaces in indentation", ln); }
+        else if (col > top.col) { if (alt <= top.alt) throw new PyErr("TabError", "inconsistent use of tabs and spaces in indentation", ln); stack.push({ col, alt }); push("INDENT", null, ln); }
+        else {
+          while (stack.length > 1 && col < stack[stack.length - 1].col) { stack.pop(); push("DEDENT", null, ln); }
+          const t2 = stack[stack.length - 1];
+          if (col !== t2.col) throw new PyErr("IndentationError", "unindent does not match any outer indentation level", ln,
+            "Line this up exactly with the code above it. Use 4 spaces for each level.");
+          if (alt !== t2.alt) throw new PyErr("TabError", "inconsistent use of tabs and spaces in indentation", ln);
+        }
+      }
+      cont = false;
+      while (i < raw.length) {
+        const c = raw[i];
+        if (c === " " || c === "\t" || c === "\f") { i++; continue; }
+        if (c === "#") break;
+        if (c === "\\" && i === raw.length - 1) { cont = true; i++; break; }
+        if (/[0-9]/.test(c) || (c === "." && /[0-9]/.test(raw[i + 1] || ""))) {
+          const m = raw.slice(i).match(/^(0[xX](_?[0-9a-fA-F])+|0[oO](_?[0-7])+|0[bB](_?[01])+|((\d(_?\d)*)?\.\d(_?\d)*|\d(_?\d)*\.?)([eE][+-]?\d(_?\d)*)?)/);
+          let s = m[0]; const j = i + s.length;
+          if (j < raw.length && /[A-Za-z_0-9\p{L}]/u.test(raw[j])) {
+            if (/[jJ]/.test(raw[j])) throw unsupported("A complex number", ln);
+            throw new PyErr("SyntaxError", "invalid decimal literal", ln, "A variable name cannot start with a number.");
+          }
+          const clean = s.replace(/_/g, "");
+          if (/^0[xob]/i.test(clean)) push("INT", BigInt(clean.toLowerCase()), ln);
+          else if (/[.eE]/.test(clean)) push("FLOAT", parseFloat(clean), ln);
+          else {
+            if (clean.length > 1 && clean[0] === "0" && !/^0+$/.test(clean))
+              throw new PyErr("SyntaxError", "leading zeros in decimal integer literals are not permitted; use an 0o prefix for octal integers", ln);
+            push("INT", BigInt(clean), ln);
+          }
+          i = j; continue;
+        }
+        if (/[A-Za-z_\p{L}]/u.test(c)) {
+          let j = i; while (j < raw.length && /[A-Za-z0-9_\p{L}\p{N}]/u.test(raw[j])) j++;
+          const w = raw.slice(i, j);
+          if (j < raw.length && (raw[j] === '"' || raw[j] === "'") && /^(r|u|f|b|rb|br|fr|rf)$/i.test(w)) {
+            const pre = w.toLowerCase();
+            if (pre.includes("f")) throw unsupported("An f-string", ln, "Join text with + or use commas in print() instead.");
+            if (pre.includes("b")) throw unsupported("A bytes literal", ln);
+            i = j; const r = readString(raw, i, ln, pre.includes("r")); push("STR", r.s, ln); i = r.end; continue;
+          }
+          push(RESERVED.has(w) ? "KW" : "NAME", w, ln); i = j; continue;
+        }
+        if (c === '"' || c === "'") { const r = readString(raw, i, ln, false); push("STR", r.s, ln); i = r.end; continue; }
+        const three = raw.substr(i, 3), two = raw.substr(i, 2);
+        if (["**=", "//=", ">>=", "<<=", "..."].includes(three)) {
+          if (three === ">>=" || three === "<<=") throw unsupported("Bitwise shifting", ln);
+          if (three === "...") throw unsupported("Ellipsis (...)", ln);
+          push("OP", three, ln); i += 3; continue;
+        }
+        if (["**", "//", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "->", ":=", "<<", ">>", "&=", "|=", "^=", "@="].includes(two)) {
+          if (two === ":=") throw unsupported("The walrus operator :=", ln);
+          if (two === "->") throw unsupported("->", ln);
+          if (["<<", ">>", "&=", "|=", "^=", "@="].includes(two)) throw unsupported("Bitwise operators", ln);
+          push("OP", two, ln); i += 2; continue;
+        }
+        if ("([{".includes(c)) { depth++; opens.push({ c, line: ln }); push("OP", c, ln); i++; continue; }
+        if (")]}".includes(c)) {
+          const o = opens.pop();
+          if (!o) throw new PyErr("SyntaxError", "unmatched '" + c + "'", ln);
+          const want = { "(": ")", "[": "]", "{": "}" }[o.c];
+          if (want !== c) throw new PyErr("SyntaxError", "closing parenthesis '" + c + "' does not match opening parenthesis '" + o.c + "'" + (o.line !== ln ? " on line " + o.line : ""), ln);
+          depth--; push("OP", c, ln); i++; continue;
+        }
+        if ("+-*/%<>=,:.;".includes(c)) { push("OP", c, ln); i++; continue; }
+        if ("&|^~@".includes(c)) throw unsupported("Bitwise operators", ln);
+        if (c === "!") throw new PyErr("SyntaxError", "invalid syntax", ln, "Python uses != for 'not equal to' and the word not for 'not'.");
+        const cp = c.codePointAt(0);
+        if (cp > 127) {
+          const tip = /[“”‘’]/.test(c) ? "These are curly quotes. Use straight quotes \" or ' instead."
+            : /[≥≤≠]/.test(c) ? "Use the keyboard symbols >=, <= and != instead." : "";
+          throw new PyErr("SyntaxError", "invalid character '" + c + "' (U+" + cp.toString(16).toUpperCase().padStart(4, "0") + ")", ln, tip);
+        }
+        throw new PyErr("SyntaxError", "invalid syntax", ln);
+      }
+      if (depth === 0 && !cont) push("NEWLINE", null, ln);
+    }
+    if (opens.length) { const o = opens[opens.length - 1]; throw new PyErr("SyntaxError", "'" + o.c + "' was never closed", o.line, "Add a closing bracket to match each opening bracket."); }
+    while (stack.length > 1) { stack.pop(); push("DEDENT", null, lines.length); }
+    push("EOF", null, lines.length);
+    return toks;
+  }
+  function readString(raw, i, ln, rawMode) {
+    const q = raw[i];
+    if (raw.substr(i, 3) === q + q + q) throw unsupported("A triple-quoted string", ln);
+    let j = i + 1, s = "";
+    while (j < raw.length && raw[j] !== q) {
+      if (raw[j] === "\\" && j + 1 < raw.length) {
+        const n = raw[j + 1];
+        if (rawMode) { s += "\\" + n; j += 2; continue; }
+        const map = { n: "\n", t: "\t", r: "\r", "\\": "\\", "'": "'", '"': '"', a: "\x07", b: "\b", f: "\f", v: "\v", 0: "\0" };
+        if (n in map) { s += map[n]; j += 2; continue; }
+        if (n === "x" && /^[0-9a-fA-F]{2}$/.test(raw.substr(j + 2, 2))) { s += String.fromCharCode(parseInt(raw.substr(j + 2, 2), 16)); j += 4; continue; }
+        if (n === "u" && /^[0-9a-fA-F]{4}$/.test(raw.substr(j + 2, 4))) { s += String.fromCharCode(parseInt(raw.substr(j + 2, 4), 16)); j += 6; continue; }
+        s += "\\" + n; j += 2; continue;
+      }
+      s += raw[j++];
+    }
+    if (j >= raw.length) {
+      if (raw.endsWith("\\")) throw unsupported("A string continued onto the next line", ln);
+      throw new PyErr("SyntaxError", "unterminated string literal (detected at line " + ln + ")", ln, "A string needs a closing " + q + " on the same line.");
+    }
+    return { s, end: j + 1 };
+  }
+
+  // ---------- parser ----------
+  function parse(src) {
+    const t = tokenize(src);
+    let p = 0, loopDepth = 0;
+    const peek = (o = 0) => t[Math.min(p + o, t.length - 1)];
+    const at = (type, value) => peek().type === type && (value === undefined || peek().value === value);
+    const atOp = v => at("OP", v);
+    const next = () => t[p++];
+    const syn = (msg, line, hint) => new PyErr("SyntaxError", msg, line ?? peek().line, hint);
+
+    function program() {
+      const body = [];
+      while (!at("EOF")) {
+        if (at("NEWLINE")) { next(); continue; }
+        if (at("INDENT")) throw new PyErr("IndentationError", "unexpected indent", peek().line, "This line is indented but it is not inside an if or a for. Remove the spaces at the start.");
+        if (at("DEDENT")) { next(); continue; }
+        body.push(...statement());
+      }
+      return body;
+    }
+    function suite(kind, line) {
+      if (!atOp(":")) {
+        if (atOp("=") && (peek(1).type === "OP" && (peek(1).value === ">" || peek(1).value === "<")))
+          throw syn("invalid syntax", peek().line, "The symbols are the wrong way round. Write " + (peek(1).value === ">" ? ">=" : "<=") + " (the = always goes second).");
+        if (atOp("=") && kind !== "else") throw syn("invalid syntax. Maybe you meant '==' or ':=' instead of '='?", peek().line, "One = assigns a value. Two == compare two values. In a condition you need ==.");
+        throw syn("expected ':'", line, "The " + kind + " line must end with a colon :");
+      }
+      next();
+      if (at("NEWLINE")) {
+        next();
+        if (!at("INDENT")) throw new PyErr("IndentationError", "expected an indented block after '" + kind + "' statement on line " + line, peek().line,
+          "The line(s) after " + kind + " must be indented by 4 spaces.");
+        next();
+        const body = [];
+        while (!at("DEDENT") && !at("EOF")) {
+          if (at("NEWLINE")) { next(); continue; }
+          if (at("INDENT")) throw new PyErr("IndentationError", "unexpected indent", peek().line, "This line has more spaces than the line above it.");
+          body.push(...statement());
+        }
+        if (at("DEDENT")) next();
+        return body;
+      }
+      return simpleLine();
+    }
+    function simpleLine() {
+      const out = [simple()];
+      while (atOp(";")) { next(); if (at("NEWLINE") || at("EOF")) break; out.push(simple()); }
+      if (at("NEWLINE")) next();
+      else if (!at("EOF") && !at("DEDENT")) {
+        if (atOp("=")) throw syn("invalid syntax. Maybe you meant '==' or ':=' instead of '='?");
+        throw syn("invalid syntax");
+      }
+      return out;
+    }
+    function statement() {
+      const tk = peek();
+      if (tk.type === "KW") {
+        if (tk.value === "if") return [ifStmt()];
+        if (tk.value === "for") return [forStmt()];
+        if (tk.value === "elif" || tk.value === "else")
+          throw syn("invalid syntax", tk.line, "'" + tk.value + "' must line up exactly under its 'if', with no other code in between.");
+        if (UNSUP_KW[tk.value]) throw unsupported(UNSUP_KW[tk.value], tk.line, tk.value === "while" ? "Use a for loop with range() for now." : "");
+      }
+      return simpleLine();
+    }
+    function ifStmt() {
+      const line = next().line;
+      const cond = namedTest(line);
+      const body = suite("if", line);
+      const elifs = []; let orelse = null;
+      while (at("KW", "elif")) { const l2 = next().line; const c2 = namedTest(l2); elifs.push({ cond: c2, body: suite("elif", l2), line: l2 }); }
+      if (at("KW", "else")) { const l3 = next().line; orelse = suite("else", l3); }
+      return { k: "if", cond, body, elifs, orelse, line };
+    }
+    function namedTest(line) {
+      if (atOp(":")) throw syn("invalid syntax", peek().line, "Write a condition before the colon, e.g. if height >= 120:");
+      const e = test();
+      if (at("NAME", "then")) throw syn("invalid syntax", peek().line, "'then' is exam reference language. In Python, end the line with a colon : instead.");
+      return e;
+    }
+    function forStmt() {
+      const line = next().line;
+      if (!at("NAME")) throw syn("invalid syntax", line, "A Python for loop looks like: for i in range(5):");
+      const name = next().value;
+      if (atOp(",")) throw unsupported("Looping with several variables", line);
+      if (atOp("=")) throw syn("invalid syntax", peek().line, "That is exam reference language. In Python write: for " + name + " in range(1, 11):");
+      if (!at("KW", "in")) throw syn("invalid syntax", peek().line, "A Python for loop looks like: for i in range(5):");
+      next();
+      const iter = test();
+      loopDepth++; const body = suite("for", line); loopDepth--;
+      let orelse = null;
+      if (at("KW", "else")) { const l3 = next().line; orelse = suite("else", l3); }
+      return { k: "for", name, iter, body, orelse, line };
+    }
+    const ASSIGN_OPS = ["+=", "-=", "*=", "/=", "//=", "%=", "**="];
+    function simple() {
+      const tk = peek();
+      if (tk.type === "KW") {
+        if (tk.value === "pass") { next(); return { k: "pass", line: tk.line }; }
+        if (tk.value === "break" || tk.value === "continue") {
+          next(); if (!loopDepth) throw syn("'" + tk.value + "' " + (tk.value === "break" ? "outside loop" : "not properly in loop"), tk.line);
+          return { k: tk.value, line: tk.line };
+        }
+        if (UNSUP_KW[tk.value]) throw unsupported(UNSUP_KW[tk.value], tk.line);
+        if (["if", "for", "elif", "else"].includes(tk.value)) throw syn("invalid syntax", tk.line);
+      }
+      if (tk.type === "NAME" && tk.value === "print" && ["STR", "NAME", "INT", "FLOAT"].includes(peek(1).type))
+        throw syn("Missing parentheses in call to 'print'. Did you mean print(...)?", tk.line, "print needs brackets: print(\"RIDE\")");
+      const first = test();
+      if (atOp(",")) throw unsupported("A tuple (values separated by commas)", peek().line);
+      if (at("OP") && ASSIGN_OPS.includes(peek().value)) {
+        const op = next().value;
+        if (first.k !== "name") throw syn("'" + exprKind(first) + "' is an illegal expression for augmented assignment", tk.line);
+        return { k: "aug", name: first.n, op, value: test(), line: tk.line };
+      }
+      if (atOp("=")) {
+        const targets = [first]; let value;
+        while (atOp("=")) { next(); value = test(); if (atOp(",")) throw unsupported("A tuple (values separated by commas)", peek().line); if (atOp("=")) targets.push(value); }
+        for (const tg of targets) if (tg.k !== "name") {
+          const kind = exprKind(tg);
+          if (["True", "False", "None"].includes(kind)) throw syn("cannot assign to " + kind, tg.line);
+          throw syn("cannot assign to " + kind + " here. Maybe you meant '==' instead of '='?", tg.line,
+            kind === "literal" ? "The variable name goes on the left of =, e.g. age = 15" : "The variable name must be on its own, on the left of =.");
+        }
+        return { k: "assign", names: targets.map(x => x.n), value, line: tk.line };
+      }
+      return { k: "expr", e: first, line: tk.line };
+    }
+    function exprKind(e) {
+      return e.k === "lit" ? (e.v.t === "none" || e.v.t === "bool" ? str(e.v) : "literal") : e.k === "call" ? "function call" : e.k === "cmp" ? "comparison"
+        : e.k === "attr" ? "attribute" : e.k === "index" || e.k === "slice" ? "subscript" : "expression";
+    }
+    function test() {
+      const body = orE();
+      if (at("KW", "if")) {
+        const line = next().line; const cond = orE();
+        if (!at("KW", "else")) throw syn("expected 'else' after 'if' expression", line);
+        next(); return { k: "ifexp", cond, body, orelse: test(), line };
+      }
+      return body;
+    }
+    function orE() { let l = andE(); while (at("KW", "or")) { const line = next().line; l = { k: "bool", op: "or", l, r: andE(), line }; } return l; }
+    function andE() { let l = notE(); while (at("KW", "and")) { const line = next().line; l = { k: "bool", op: "and", l, r: notE(), line }; } return l; }
+    function notE() { if (at("KW", "not")) { const line = next().line; return { k: "not", e: notE(), line }; } return cmpE(); }
+    function cmpOp() {
+      if (at("OP") && ["==", "!=", "<", ">", "<=", ">="].includes(peek().value)) return next().value;
+      if (at("KW", "in")) { next(); return "in"; }
+      if (at("KW", "not") && peek(1).type === "KW" && peek(1).value === "in") { next(); next(); return "not in"; }
+      if (at("KW", "is")) { next(); if (at("KW", "not")) { next(); return "is not"; } return "is"; }
+      return null;
+    }
+    function cmpE() {
+      const first = arith(); const ops = [], rest = [];
+      let op; while ((op = cmpOp())) { ops.push(op); rest.push(arith()); }
+      return ops.length ? { k: "cmp", first, ops, rest, line: first.line } : first;
+    }
+    function arith() { let l = term(); while (atOp("+") || atOp("-")) { const tk = next(); l = { k: "bin", op: tk.value, l, r: term(), line: tk.line }; } return l; }
+    function term() { let l = factor(); while (at("OP") && ["*", "/", "//", "%"].includes(peek().value)) { const tk = next(); l = { k: "bin", op: tk.value, l, r: factor(), line: tk.line }; } return l; }
+    function factor() { if (atOp("-") || atOp("+")) { const tk = next(); return { k: "un", op: tk.value, e: factor(), line: tk.line }; } return power(); }
+    function power() { const b = postfix(); if (atOp("**")) { const tk = next(); return { k: "bin", op: "**", l: b, r: factor(), line: tk.line }; } return b; }
+    function postfix() {
+      let e = atom();
+      for (;;) {
+        if (atOp("(")) {
+          const line = next().line; const args = [], kwargs = []; let seenKw = false;
+          while (!atOp(")")) {
+            if (atOp("*") || atOp("**")) throw unsupported("Unpacking with * or **", peek().line);
+            if (at("NAME") && peek(1).type === "OP" && peek(1).value === "=") { const n = next().value; next(); kwargs.push([n, test()]); seenKw = true; }
+            else {
+              const a = test();
+              if (atOp("=")) throw syn('expression cannot contain assignment, perhaps you meant "=="?', peek().line);
+              if (seenKw) throw syn("positional argument follows keyword argument", a.line);
+              if (at("KW", "for")) throw unsupported("A generator expression", peek().line);
+              args.push(a);
+            }
+            if (atOp(",")) next();
+            else if (!atOp(")")) {
+              if (["STR", "NAME", "INT", "FLOAT"].includes(peek().type)) throw syn("invalid syntax. Perhaps you forgot a comma?", peek().line, "Separate items inside the brackets with commas.");
+              throw syn("invalid syntax");
+            }
+          }
+          next(); e = { k: "call", f: e, args, kwargs, line };
+        } else if (atOp(".")) {
+          const line = next().line; if (!at("NAME")) throw syn("invalid syntax", line);
+          e = { k: "attr", obj: e, name: next().value, line };
+        } else if (atOp("[")) {
+          const line = next().line;
+          const parts = [null, null, null]; let isSlice = false, idx = 0;
+          while (!atOp("]")) {
+            if (atOp(":")) { next(); isSlice = true; idx++; if (idx > 2) throw syn("invalid syntax"); continue; }
+            if (parts[idx] !== null) throw syn("invalid syntax");
+            parts[idx] = test();
+            if (atOp(",")) throw unsupported("Indexing with commas", line);
+          }
+          next();
+          if (!isSlice && parts[0] === null) throw syn("invalid syntax", line);
+          e = isSlice ? { k: "slice", obj: e, parts, line } : { k: "index", obj: e, idx: parts[0], line };
+        } else break;
+      }
+      return e;
+    }
+    function atom() {
+      const tk = peek();
+      if (tk.type === "INT") { next(); return { k: "lit", v: { t: "int", v: tk.value }, line: tk.line }; }
+      if (tk.type === "FLOAT") { next(); return { k: "lit", v: { t: "float", v: tk.value }, line: tk.line }; }
+      if (tk.type === "STR") { next(); let s = tk.value; while (at("STR")) s += next().value; return { k: "lit", v: { t: "str", v: s }, line: tk.line }; }
+      if (tk.type === "NAME") { next(); return { k: "name", n: tk.value, line: tk.line }; }
+      if (tk.type === "KW") {
+        if (tk.value === "True" || tk.value === "False") { next(); return { k: "lit", v: { t: "bool", v: tk.value === "True" }, line: tk.line }; }
+        if (tk.value === "None") { next(); return { k: "lit", v: { t: "none" }, line: tk.line }; }
+        if (UNSUP_KW[tk.value]) throw unsupported(UNSUP_KW[tk.value], tk.line);
+      }
+      if (atOp("(")) {
+        next();
+        if (atOp(")")) throw unsupported("A tuple", tk.line);
+        const e = test();
+        if (atOp(",")) throw unsupported("A tuple (values separated by commas)", peek().line);
+        if (at("KW", "for")) throw unsupported("A generator expression", peek().line);
+        if (!atOp(")")) throw syn("invalid syntax");
+        next(); return e;
+      }
+      if (atOp("[")) throw unsupported("A list", tk.line);
+      if (atOp("{")) throw unsupported("A dictionary or set", tk.line);
+      if (atOp("=")) throw syn("invalid syntax. Maybe you meant '==' or ':=' instead of '='?", tk.line, "One = assigns a value. Two == compare two values.");
+      throw syn("invalid syntax", tk.line);
+    }
+    return program();
+  }
+
+  // ---------- values ----------
+  const I = v => ({ t: "int", v: BigInt(v) }), F = v => ({ t: "float", v }), S = v => ({ t: "str", v }), B = v => ({ t: "bool", v: !!v }), NONE = { t: "none" };
+  const TY = n => ({ t: "type", name: n });
+  const tname = x => x.t === "none" ? "NoneType" : x.t === "func" || x.t === "method" ? "builtin_function_or_method" : x.t;
+  const isIntLike = x => x.t === "int" || x.t === "bool";
+  const isNum = x => isIntLike(x) || x.t === "float";
+  const big = x => x.t === "bool" ? (x.v ? 1n : 0n) : x.v;
+  function toF(x, line) {
+    if (x.t === "float") return x.v;
+    const n = Number(big(x));
+    if (!isFinite(n)) throw new PyErr("OverflowError", "int too large to convert to float", line);
+    return n;
+  }
+  const cps = s => [...s];
+
+  function floatRepr(v) {
+    if (Number.isNaN(v)) return "nan";
+    if (!isFinite(v)) return v > 0 ? "inf" : "-inf";
+    if (v === 0) return Object.is(v, -0) ? "-0.0" : "0.0";
+    const m = v.toExponential().match(/^(-?)(\d)(?:\.(\d+))?e([+-]\d+)$/);
+    const sign = m[1], d = m[2] + (m[3] || ""), e = parseInt(m[4], 10);
+    if (e >= -4 && e < 16) {
+      const pos = e + 1;
+      if (pos <= 0) return sign + "0." + "0".repeat(-pos) + d;
+      if (pos >= d.length) return sign + d + "0".repeat(pos - d.length) + ".0";
+      return sign + d.slice(0, pos) + "." + d.slice(pos);
+    }
+    return sign + d[0] + (d.length > 1 ? "." + d.slice(1) : "") + "e" + (e < 0 ? "-" : "+") + String(Math.abs(e)).padStart(2, "0");
+  }
+  function strRepr(s) {
+    const q = s.includes("'") && !s.includes('"') ? '"' : "'";
+    let out = q;
+    for (const ch of s) {
+      const c = ch.codePointAt(0);
+      if (ch === "\\") out += "\\\\"; else if (ch === q) out += "\\" + q; else if (ch === "\n") out += "\\n"; else if (ch === "\r") out += "\\r"; else if (ch === "\t") out += "\\t";
+      else if (c < 32 || c === 127) out += "\\x" + c.toString(16).padStart(2, "0"); else out += ch;
+    }
+    return out + q;
+  }
+  function str(x) {
+    switch (x.t) {
+      case "str": return x.v; case "int": return x.v.toString(); case "float": return floatRepr(x.v);
+      case "bool": return x.v ? "True" : "False"; case "none": return "None";
+      case "range": return `range(${x.start}, ${x.stop}${x.step !== 1n ? ", " + x.step : ""})`;
+      case "type": return `<class '${x.name}'>`;
+      case "func": return `<built-in function ${x.name}>`;
+      case "method": return `<built-in method ${x.name} of ${tname(x.o)} object at 0x7f3a2c1b4e30>`;
+    }
+  }
+  function truthy(x) {
+    if (x.t === "none") return false; if (x.t === "str") return x.v.length > 0; if (x.t === "bool") return x.v;
+    if (x.t === "int") return x.v !== 0n; if (x.t === "float") return x.v !== 0; if (x.t === "range") return rangeLen(x) > 0n; return true;
+  }
+  function rangeLen(r) {
+    const { start, stop, step } = r;
+    if (step > 0n) return stop > start ? (stop - start + step - 1n) / step : 0n;
+    return start > stop ? (start - stop + (-step) - 1n) / (-step) : 0n;
+  }
+  function numCmp(a, b) {
+    if (isIntLike(a) && isIntLike(b)) { const x = big(a), y = big(b); return x < y ? -1 : x > y ? 1 : 0; }
+    if (a.t === "float" && b.t === "float") return Number.isNaN(a.v) || Number.isNaN(b.v) ? NaN : a.v < b.v ? -1 : a.v > b.v ? 1 : 0;
+    const flip = a.t === "float"; const f = flip ? a.v : b.v, n = flip ? big(b) : big(a);
+    let r;
+    if (Number.isNaN(f)) return NaN;
+    if (!isFinite(f)) r = f > 0 ? -1 : 1;
+    else if (Number.isInteger(f)) { const fb = BigInt(f); r = n < fb ? -1 : n > fb ? 1 : 0; }
+    else { const fl = BigInt(Math.floor(f)); r = n <= fl ? -1 : 1; }
+    return flip ? -r : r;
+  }
+  function cpCmp(a, b) { const x = cps(a), y = cps(b); for (let i = 0; i < Math.min(x.length, y.length); i++) { const d = x[i].codePointAt(0) - y[i].codePointAt(0); if (d) return d < 0 ? -1 : 1; } return x.length === y.length ? 0 : x.length < y.length ? -1 : 1; }
+  function eq(a, b) {
+    if (isNum(a) && isNum(b)) return numCmp(a, b) === 0;
+    if (a.t !== b.t) return false;
+    switch (a.t) {
+      case "str": return a.v === b.v; case "none": return true; case "type": return a.name === b.name; case "func": return a.name === b.name;
+      case "range": { const la = rangeLen(a), lb = rangeLen(b); if (la !== lb) return false; if (la === 0n) return true; if (a.start !== b.start) return false; return la === 1n || a.step === b.step; }
+    }
+    return a === b;
+  }
+  function fdivmod(vx, wx) {
+    let mod = vx % wx, div = (vx - mod) / wx;
+    if (mod) { if ((wx < 0) !== (mod < 0)) { mod += wx; div -= 1; } } else mod = (wx < 0 || Object.is(wx, -0)) ? -0 : 0;
+    let floordiv;
+    if (div) { floordiv = Math.floor(div); if (div - floordiv > 0.5) floordiv += 1; } else { const q = vx / wx; floordiv = (q < 0 || Object.is(q, -0)) ? -0 : 0; }
+    return [floordiv, mod];
+  }
+  const bfloordiv = (a, b) => { let q = a / b; if ((a % b !== 0n) && ((a < 0n) !== (b < 0n))) q -= 1n; return q; };
+  const bmod = (a, b) => { const r = a % b; return r !== 0n && ((r < 0n) !== (b < 0n)) ? r + b : r; };
+  function exactFloat(x) {
+    const dv = new DataView(new ArrayBuffer(8)); dv.setFloat64(0, x);
+    const hi = dv.getUint32(0), lo = dv.getUint32(4);
+    const sign = hi >>> 31 ? -1n : 1n, expo = (hi >>> 20) & 0x7ff;
+    let mant = (BigInt(hi & 0xfffff) << 32n) | BigInt(lo); let e;
+    if (expo === 0) e = -1074; else { mant |= 1n << 52n; e = expo - 1075; }
+    return { sign, mant, e };
+  }
+  function roundHalfEven(num, den) {
+    let q = num / den, r = num % den; if (r < 0n) { r += den; q -= 1n; }
+    const twice = 2n * r; if (twice > den || (twice === den && q % 2n !== 0n)) q += 1n; return q;
+  }
+  function pyRoundFloat(x, n) {
+    if (!isFinite(x) || x === 0) return x;
+    if (n > 330) return x;
+    const { sign, mant, e } = exactFloat(x);
+    let num = mant, den = 1n;
+    if (e >= 0) num <<= BigInt(e); else den <<= BigInt(-e);
+    if (n >= 0) num *= 10n ** BigInt(n); else den *= 10n ** BigInt(-n);
+    const k = roundHalfEven(num, den);
+    if (k === 0n) return sign < 0n ? -0 : 0;
+    return Number((sign < 0n ? "-" : "") + k.toString() + "e" + (-n));
+  }
+  function pyRoundToInt(x, line) {
+    if (Number.isNaN(x)) throw new PyErr("ValueError", "cannot convert float NaN to integer", line);
+    if (!isFinite(x)) throw new PyErr("OverflowError", "cannot convert float infinity to integer", line);
+    if (x === 0) return 0n;
+    const { sign, mant, e } = exactFloat(x); let num = mant, den = 1n;
+    if (e >= 0) num <<= BigInt(e); else den <<= BigInt(-e);
+    return roundHalfEven(num, den) * sign;
+  }
+  const STR_METHODS_ALL = new Set("capitalize casefold center count encode endswith expandtabs find format format_map index isalnum isalpha isascii isdecimal isdigit isidentifier islower isnumeric isprintable isspace istitle isupper join ljust lower lstrip maketrans partition removeprefix removesuffix replace rfind rindex rjust rpartition rsplit rstrip split splitlines startswith strip swapcase title translate upper zfill".split(" "));
+  const STR_METHODS = new Set(["upper", "lower", "strip", "lstrip", "rstrip", "isdigit", "isalpha", "isupper", "islower", "title", "capitalize", "count", "replace", "startswith", "endswith", "find"]);
+  const INT_ATTRS = new Set("as_integer_ratio bit_count bit_length conjugate denominator from_bytes imag is_integer numerator real to_bytes".split(" "));
+  const FLOAT_ATTRS = new Set("as_integer_ratio conjugate fromhex hex imag is_integer real".split(" "));
+  const KNOWN_UNSUP = new Set("list dict set tuple open sorted sum enumerate zip map filter ord chr exit quit eval exec format hex bin oct divmod pow any all reversed iter next id hash dir help vars globals locals repr ascii callable complex bytes bytearray frozenset object super property classmethod staticmethod getattr setattr hasattr delattr issubclass memoryview slice compile breakpoint aiter anext __import__".split(" "));
+
+  // ---------- interpreter ----------
+  function run(src, inputs, opts = {}) {
+    const log = []; let out = ""; let inPtr = 0; let steps = 0; const maxSteps = opts.maxSteps || 200000;
+    const env = new Map(); let curLine = 0; let assigning = null;
+    let body;
+    try { body = parse(src); }
+    catch (e) { if (e instanceof PyErr) return { ok: false, error: e, output: "", log, parseError: true, inputsUsed: 0, env }; throw e; }
+
+    const write = (s, types) => { out += s; log.push({ kind: "out", text: s, types: types || [] }); if (out.length > 200000) throw new PyErr("NotSupported", "Your program printed too much output for Python Park.", curLine); };
+    const argc = (name, args, min, max, line) => {
+      if (args.length < min || args.length > max) {
+        if (max === 0) throw new PyErr("TypeError", `${name}() takes no arguments (${args.length} given)`, line);
+        throw new PyErr("TypeError", `${name}() takes ${min === max ? "exactly one argument" : "at most " + max + " arguments"} (${args.length} given)`, line);
+      }
+    };
+    const noKw = (name, kw, line) => { if (Object.keys(kw).length) throw new PyErr("TypeError", `${name}() takes no keyword arguments`, line); };
+    function seq(x, line) {
+      if (x.t === "str") return cps(x.v).map(S);
+      if (x.t === "range") { const a = []; for (let v = x.start; x.step > 0n ? v < x.stop : v > x.stop; v += x.step) { a.push(I(v)); if (a.length > maxSteps) throw new PyErr("NotSupported", "That range is too big for Python Park.", line); } return a; }
+      throw new PyErr("TypeError", `'${tname(x)}' object is not iterable`, line, x.t === "int" ? "Use range(): for i in range(" + x.v + "):" : "");
+    }
+    function rich(op, a, b, line) {
+      if (op === "==") return eq(a, b); if (op === "!=") return !eq(a, b);
+      let c;
+      if (isNum(a) && isNum(b)) c = numCmp(a, b);
+      else if (a.t === "str" && b.t === "str") c = cpCmp(a.v, b.v);
+      else {
+        const strNum = (a.t === "str" && isNum(b)) || (isNum(a) && b.t === "str");
+        throw new PyErr("TypeError", `'${op}' not supported between instances of '${tname(a)}' and '${tname(b)}'`, line,
+          strNum ? "input() always gives a string. Cast it with int() before comparing it with a number, e.g. height = int(input())" : "");
+      }
+      if (Number.isNaN(c)) return false;
+      return op === "<" ? c < 0 : op === ">" ? c > 0 : op === "<=" ? c <= 0 : c >= 0;
+    }
+    function maxmin(name, args, kw, line) {
+      for (const k in kw) throw new PyErr("TypeError", `'${k}' is an invalid keyword argument for ${name}()`, line);
+      if (!args.length) throw new PyErr("TypeError", `${name} expected at least 1 argument, got 0`, line);
+      const items = args.length === 1 ? seq(args[0], line) : args;
+      if (!items.length) throw new PyErr("ValueError", `${name}() iterable argument is empty`, line);
+      let best = items[0];
+      for (const it of items.slice(1)) if (rich(name === "max" ? ">" : "<", it, best, line)) best = it;
+      return best;
+    }
+    function toInt(x, base, line) {
+      if (base !== undefined) {
+        if (x.t !== "str") throw new PyErr("TypeError", "int() can't convert non-string with explicit base", line);
+        if (!isIntLike(base)) throw new PyErr("TypeError", `'${tname(base)}' object cannot be interpreted as an integer`, line);
+        const b = Number(big(base));
+        if (b !== 0 && (b < 2 || b > 36)) throw new PyErr("ValueError", "int() base must be >= 2 and <= 36, or 0", line);
+        if (b === 0) throw unsupported("int() with base 0", line);
+        const raw = x.v.trim(); const neg = raw.startsWith("-"); let body2 = raw.replace(/^[+-]/, "").toLowerCase();
+        const pref = { 16: "0x", 8: "0o", 2: "0b" }[b]; if (pref && body2.startsWith(pref)) body2 = body2.slice(2).replace(/^_/, "");
+        const digits = "0123456789abcdefghijklmnopqrstuvwxyz".slice(0, b);
+        if (!body2 || /__|^_|_$/.test(body2) || [...body2.replace(/_/g, "")].some(ch => !digits.includes(ch)) || body2.replace(/_/g, "") === "")
+          throw new PyErr("ValueError", `invalid literal for int() with base ${b}: ${strRepr(x.v)}`, line);
+        let v = 0n; for (const ch of body2.replace(/_/g, "")) v = v * BigInt(b) + BigInt(digits.indexOf(ch)); return I(neg ? -v : v);
+      }
+      if (x.t === "int") return x; if (x.t === "bool") return I(x.v ? 1 : 0);
+      if (x.t === "float") {
+        if (Number.isNaN(x.v)) throw new PyErr("ValueError", "cannot convert float NaN to integer", line);
+        if (!isFinite(x.v)) throw new PyErr("OverflowError", "cannot convert float infinity to integer", line);
+        return I(BigInt(Math.trunc(x.v)));
+      }
+      if (x.t === "str") {
+        const s = x.v.trim();
+        if (/^[+-]?\d+(_\d+)*$/.test(s)) return I(BigInt(s.replace(/_/g, "")));
+        throw new PyErr("ValueError", "invalid literal for int() with base 10: " + strRepr(x.v), line,
+          /^[+-]?(\d*\.\d+|\d+\.\d*)$/.test(s) ? "int() cannot convert text with a decimal point. Use float() for numbers like this." : s === "" ? "There is no text to convert." : "int() can only convert text that is a whole number.");
+      }
+      throw new PyErr("TypeError", `int() argument must be a string, a bytes-like object or a real number, not '${tname(x)}'`, line);
+    }
+    function toFloat(x, line) {
+      if (x.t === "float") return x; if (isIntLike(x)) return F(toF(x, line));
+      if (x.t === "str") {
+        const s = x.v.trim();
+        if (/^[+-]?((\d+(_\d+)*)(\.(\d+(_\d+)*)?)?|\.\d+(_\d+)*)([eE][+-]?\d+(_\d+)*)?$/.test(s)) return F(Number(s.replace(/_/g, "")));
+        const m = s.match(/^([+-]?)(inf|infinity|nan)$/i);
+        if (m) return F(m[2].toLowerCase() === "nan" ? NaN : m[1] === "-" ? -Infinity : Infinity);
+        throw new PyErr("ValueError", "could not convert string to float: " + strRepr(x.v), line);
+      }
+      throw new PyErr("TypeError", `float() argument must be a string or a real number, not '${tname(x)}'`, line);
+    }
+    const builtins = {
+      print(args, kw, line) {
+        for (const k in kw) if (k !== "sep" && k !== "end" && k !== "flush") throw new PyErr("TypeError", `'${k}' is an invalid keyword argument for print()`, line,
+          "Inside print( ) an = sign is read as a setting name. To compare values use ==.");
+        const chk = k => { const v = kw[k]; if (v === undefined || v.t === "none") return null; if (v.t !== "str") throw new PyErr("TypeError", `${k} must be None or a string, not ${tname(v)}`, line); return v.v; };
+        const sep = chk("sep") ?? " ", end = chk("end") ?? "\n";
+        write(args.map(str).join(sep) + end, args.map(tname)); return NONE;
+      },
+      input(args, kw, line) {
+        noKw("input", kw, line);
+        if (args.length > 1) throw new PyErr("TypeError", "input expected at most 1 argument, got " + args.length, line, "Put the whole prompt in one string. Join parts with +.");
+        const prompt = args.length ? str(args[0]) : "";
+        if (inPtr >= inputs.length) throw new PyErr("EOFError", "EOF when reading a line", line, opts.noMoreInput || "Your program asked for input() more times than there is data.");
+        const v = String(inputs[inPtr++]); log.push({ kind: "in", prompt, value: v }); return S(v);
+      },
+      len(args, kw, line) {
+        noKw("len", kw, line); if (args.length !== 1) throw new PyErr("TypeError", `len() takes exactly one argument (${args.length} given)`, line);
+        const x = args[0]; if (x.t === "str") return I(cps(x.v).length); if (x.t === "range") return I(rangeLen(x));
+        throw new PyErr("TypeError", `object of type '${tname(x)}' has no len()`, line, x.t === "int" ? "len() works on strings. Was this value cast to int() already?" : "");
+      },
+      abs(args, kw, line) { noKw("abs", kw, line); argc("abs", args, 1, 1, line); const x = args[0]; if (isIntLike(x)) { const b = big(x); return I(b < 0n ? -b : b); } if (x.t === "float") return F(Math.abs(x.v)); throw new PyErr("TypeError", `bad operand type for abs(): '${tname(x)}'`, line); },
+      round(args, kw, line) {
+        const x = args[0] ?? kw.number; const nd = args[1] ?? kw.ndigits;
+        if (!x) throw new PyErr("TypeError", "round() missing required argument 'number' (pos 1)", line);
+        if (args.length > 2) throw new PyErr("TypeError", `round() takes at most 2 arguments (${args.length} given)`, line);
+        const hasNd = nd !== undefined && nd.t !== "none";
+        if (isIntLike(x)) {
+          if (hasNd && !isIntLike(nd)) throw new PyErr("TypeError", `'${tname(nd)}' object cannot be interpreted as an integer`, line);
+          const b = big(x); if (!hasNd || big(nd) >= 0n) return I(b);
+          const p = 10n ** (-big(nd)); return I(roundHalfEven(b, p) * p);
+        }
+        if (x.t === "float") {
+          if (hasNd && !isIntLike(nd)) throw new PyErr("TypeError", `'${tname(nd)}' object cannot be interpreted as an integer`, line);
+          return hasNd ? F(pyRoundFloat(x.v, Number(big(nd)))) : I(pyRoundToInt(x.v, line));
+        }
+        throw new PyErr("TypeError", `type ${tname(x)} doesn't define __round__ method`, line);
+      },
+      max(args, kw, line) { return maxmin("max", args, kw, line); },
+      min(args, kw, line) { return maxmin("min", args, kw, line); },
+      isinstance(args, kw, line) {
+        if (args.length !== 2) throw new PyErr("TypeError", `isinstance expected 2 arguments, got ${args.length}`, line);
+        const [x, ty] = args; if (ty.t !== "type") throw new PyErr("TypeError", "isinstance() arg 2 must be a type, a tuple of types, or a union", line);
+        return B(tname(x) === ty.name || (ty.name === "int" && x.t === "bool"));
+      },
+    };
+    const constructors = {
+      int(args, kw, line) {
+        for (const k in kw) if (k !== "base") throw new PyErr("TypeError", `'${k}' is an invalid keyword argument for int()`, line);
+        if (args.length > 2) throw new PyErr("TypeError", `int() takes at most 2 arguments (${args.length} given)`, line);
+        if ("base" in kw && !args.length) throw new PyErr("TypeError", "int() missing string argument", line);
+        if (!args.length) return I(0); return toInt(args[0], args[1] ?? kw.base, line);
+      },
+      float(args, kw, line) { noKw("float", kw, line); if (args.length > 1) throw new PyErr("TypeError", `float expected at most 1 argument, got ${args.length}`, line); return args.length ? toFloat(args[0], line) : F(0); },
+      str(args, kw, line) { if (args.length > 1 || Object.keys(kw).length) throw unsupported("str() with more than one argument", line); return S(args.length ? str(args[0]) : ""); },
+      bool(args, kw, line) { noKw("bool", kw, line); if (args.length > 1) throw new PyErr("TypeError", `bool expected at most 1 argument, got ${args.length}`, line); return B(args.length ? truthy(args[0]) : false); },
+      type(args, kw, line) { if (args.length !== 1) throw new PyErr("TypeError", "type() takes 1 or 3 arguments", line); return TY(tname(args[0])); },
+      range(args, kw, line) {
+        noKw("range", kw, line);
+        if (!args.length) throw new PyErr("TypeError", "range expected at least 1 argument, got 0", line);
+        if (args.length > 3) throw new PyErr("TypeError", `range expected at most 3 arguments, got ${args.length}`, line);
+        for (const a of args) if (!isIntLike(a)) throw new PyErr("TypeError", `'${tname(a)}' object cannot be interpreted as an integer`, line,
+          a.t === "str" ? "range() needs a whole number. If it came from input(), cast it with int() first." : a.t === "float" ? "range() needs a whole number, not a decimal." : "");
+        const n = args.map(big);
+        const [start, stop, step] = n.length === 1 ? [0n, n[0], 1n] : n.length === 2 ? [n[0], n[1], 1n] : n;
+        if (step === 0n) throw new PyErr("ValueError", "range() arg 3 must not be zero", line);
+        return { t: "range", start, stop, step };
+      },
+    };
+
+    function tick(line) { curLine = line; if (++steps > maxSteps) throw new PyErr("NotSupported", "Your program ran for too long for Python Park.", line, "Check the numbers in range(). They may be much bigger than you meant."); }
+
+    function bin(op, a, b, line) {
+      if (op === "+") {
+        if (a.t === "str" && b.t === "str") return S(a.v + b.v);
+        if (a.t === "str") throw new PyErr("TypeError", `can only concatenate str (not "${tname(b)}") to str`, line,
+          "You are joining text to a number. Cast the text with int() to add numbers, or cast the number with str() to join text.");
+      }
+      if (op === "*") {
+        const rep = (s, n) => { const k = big(n); if (k * BigInt(s.length) > 1000000n) throw new PyErr("NotSupported", "That string would be too long for Python Park.", line); return S(k > 0n ? s.repeat(Number(k)) : ""); };
+        if (a.t === "str" && isIntLike(b)) return rep(a.v, b);
+        if (b.t === "str" && isIntLike(a)) return rep(b.v, a);
+        if (a.t === "str" || b.t === "str") { const other = a.t === "str" ? b : a; throw new PyErr("TypeError", `can't multiply sequence by non-int of type '${tname(other)}'`, line); }
+      }
+      if (op === "%" && a.t === "str") {
+        if (a.v.includes("%")) throw unsupported("Formatting a string with %", line);
+        throw new PyErr("TypeError", "not all arguments converted during string formatting", line);
+      }
+      if (!isNum(a) || !isNum(b)) {
+        const sym = op === "**" ? "** or pow()" : op;
+        throw new PyErr("TypeError", `unsupported operand type(s) for ${sym}: '${tname(a)}' and '${tname(b)}'`, line,
+          a.t === "str" || b.t === "str" ? "Maths needs numbers. If a value came from input(), cast it with int() or float() first." : "");
+      }
+      const fl = a.t === "float" || b.t === "float";
+      if (!fl) {
+        const x = big(a), y = big(b);
+        switch (op) {
+          case "+": return I(x + y); case "-": return I(x - y); case "*": return I(x * y);
+          case "/": {
+            if (y === 0n) throw new PyErr("ZeroDivisionError", "division by zero", line);
+            const r = Number(x) / Number(y);
+            if (!isFinite(r)) throw new PyErr("OverflowError", "integer division result too large for a float", line); return F(r);
+          }
+          case "//": if (y === 0n) throw new PyErr("ZeroDivisionError", "integer division or modulo by zero", line); return I(bfloordiv(x, y));
+          case "%": if (y === 0n) throw new PyErr("ZeroDivisionError", "integer modulo by zero", line); return I(bmod(x, y));
+          case "**":
+            if (y >= 0n) { if (y > 100000n && (x > 1n || x < -1n)) throw new PyErr("NotSupported", "That number is too big for Python Park.", line); return I(x ** y); }
+            if (x === 0n) throw new PyErr("ZeroDivisionError", "0.0 cannot be raised to a negative power", line);
+            return F(Math.pow(Number(x), Number(y)));
+        }
+      }
+      const x = toF(a, line), y = toF(b, line);
+      switch (op) {
+        case "+": return F(x + y); case "-": return F(x - y); case "*": return F(x * y);
+        case "/": if (y === 0) throw new PyErr("ZeroDivisionError", "float division by zero", line); return F(x / y);
+        case "//": if (y === 0) throw new PyErr("ZeroDivisionError", "float floor division by zero", line); return F(fdivmod(x, y)[0]);
+        case "%": if (y === 0) throw new PyErr("ZeroDivisionError", "float modulo", line); return F(fdivmod(x, y)[1]);
+        case "**": {
+          if (x === 0 && y < 0) throw new PyErr("ZeroDivisionError", "0.0 cannot be raised to a negative power", line);
+          if (x < 0 && !Number.isInteger(y) && isFinite(y)) throw unsupported("A complex number result", line, "Python would give a complex number here.");
+          const r = Math.pow(x, y);
+          if (!isFinite(r) && isFinite(x) && isFinite(y)) throw new PyErr("OverflowError", "(34, 'Numerical result out of range')", line);
+          return F(r);
+        }
+      }
+    }
+    function ev(e) {
+      switch (e.k) {
+        case "lit": return e.v;
+        case "name": {
+          if (env.has(e.n)) return env.get(e.n);
+          if (constructors[e.n]) return TY(e.n);
+          if (builtins[e.n]) return { t: "func", name: e.n };
+          if (KNOWN_UNSUP.has(e.n)) throw unsupported(`The built-in name '${e.n}'`, e.line);
+          let hint = "Check the spelling. A variable must be given a value before it is used.";
+          if (assigning === e.n) hint = "Give " + e.n + " a starting value before the loop, e.g. " + e.n + " = 0";
+          else if (["true", "false", "TRUE", "FALSE"].includes(e.n)) hint = "Python's Boolean values have a capital first letter: True and False.";
+          else if (["none", "NONE", "null"].includes(e.n)) hint = "Python uses None (capital N).";
+          else if (/^(Print|PRINT|Input|INPUT|Int|INT|Str|STR|Float|FLOAT|Len|LEN|Range|RANGE|Bool|BOOL|Type|TYPE)$/.test(e.n)) hint = "Python is case sensitive. Write " + e.n.toLowerCase() + " in lowercase.";
+          else if (/^[A-Z]{2,}$/.test(e.n) || /^(ride|stop|vip|yes|no|sunny|rain)$/.test(e.n)) hint = "If this is text, it must be inside quotation marks, e.g. \"" + e.n + "\"";
+          throw new PyErr("NameError", `name '${e.n}' is not defined`, e.line, hint);
+        }
+        case "bool": { const l = ev(e.l); if (e.op === "and") return truthy(l) ? ev(e.r) : l; return truthy(l) ? l : ev(e.r); }
+        case "not": return B(!truthy(ev(e.e)));
+        case "ifexp": return truthy(ev(e.cond)) ? ev(e.body) : ev(e.orelse);
+        case "cmp": {
+          let left = ev(e.first);
+          for (let i = 0; i < e.ops.length; i++) {
+            const right = ev(e.rest[i]), op = e.ops[i]; let r;
+            if (op === "in" || op === "not in") {
+              if (right.t === "str") { if (left.t !== "str") throw new PyErr("TypeError", `'in <string>' requires string as left operand, not ${tname(left)}`, e.line); r = right.v.includes(left.v); }
+              else if (right.t === "range") r = seqHasNum(right, left);
+              else throw new PyErr("TypeError", `argument of type '${tname(right)}' is not iterable`, e.line);
+              if (op === "not in") r = !r;
+            } else if (op === "is" || op === "is not") {
+              const single = x => x.t === "none" || x.t === "bool";
+              if (!single(left) && !single(right)) throw unsupported("'is' between these values", e.line, "Use == to compare values. Python Park only supports 'is' with None, True or False.");
+              r = left.t === right.t && (left.t === "none" || left.v === right.v);
+              if (op === "is not") r = !r;
+            } else r = rich(op, left, right, e.line);
+            if (!r) return B(false);
+            left = right;
+          }
+          return B(true);
+        }
+        case "un": {
+          const v = ev(e.e);
+          if (!isNum(v)) throw new PyErr("TypeError", `bad operand type for unary ${e.op}: '${tname(v)}'`, e.line);
+          if (v.t === "float") return F(e.op === "-" ? -v.v : v.v);
+          return I(e.op === "-" ? -big(v) : big(v));
+        }
+        case "bin": return bin(e.op, ev(e.l), ev(e.r), e.line);
+        case "attr": {
+          const o = ev(e.obj);
+          if (o.t === "str") { if (STR_METHODS.has(e.name)) return { t: "method", o, name: e.name }; if (STR_METHODS_ALL.has(e.name)) throw unsupported(`The string method .${e.name}()`, e.line); }
+          if (isIntLike(o) && INT_ATTRS.has(e.name)) throw unsupported(`.${e.name}`, e.line);
+          if (o.t === "float" && FLOAT_ATTRS.has(e.name)) throw unsupported(`.${e.name}`, e.line);
+          if (o.t === "type" || o.t === "func" || o.t === "range" || o.t === "method") throw unsupported(`Attributes of ${tname(o)} objects`, e.line);
+          throw new PyErr("AttributeError", `'${tname(o)}' object has no attribute '${e.name}'`, e.line,
+            isNum(o) && STR_METHODS_ALL.has(e.name) ? "This value is a number, not a string. String methods only work on strings." : e.name === "length" ? "In Python, use len(text) to find the length of a string." : "");
+        }
+        case "index": {
+          const o = ev(e.obj), i = ev(e.idx);
+          if (o.t === "range") throw unsupported("Indexing a range", e.line);
+          if (o.t !== "str") throw new PyErr("TypeError", `'${tname(o)}' object is not subscriptable`, e.line);
+          if (!isIntLike(i)) throw new PyErr("TypeError", `string indices must be integers, not '${tname(i)}'`, e.line);
+          const chars = cps(o.v); let k = big(i); if (k < 0n) k += BigInt(chars.length);
+          if (k < 0n || k >= BigInt(chars.length)) throw new PyErr("IndexError", "string index out of range", e.line);
+          return S(chars[Number(k)]);
+        }
+        case "slice": {
+          const o = ev(e.obj);
+          if (o.t !== "str") { if (o.t === "range") throw unsupported("Slicing a range", e.line); throw new PyErr("TypeError", `'${tname(o)}' object is not subscriptable`, e.line); }
+          const vals = e.parts.map(x => x === null ? NONE : ev(x));
+          for (const v of vals) if (v.t !== "none" && !isIntLike(v)) throw new PyErr("TypeError", "slice indices must be integers or None or have an __index__ method", e.line);
+          const chars = cps(o.v), L = BigInt(chars.length);
+          const step = vals[2].t === "none" ? 1n : big(vals[2]);
+          if (step === 0n) throw new PyErr("ValueError", "slice step cannot be zero", e.line);
+          const adj = (v, def, lo, hi) => { if (v.t === "none") return def; let x = big(v); if (x < 0n) { x += L; if (x < lo) x = lo; } else if (x > hi) x = hi; return x; };
+          let start, stop;
+          if (step > 0n) { start = adj(vals[0], 0n, 0n, L); stop = adj(vals[1], L, 0n, L); }
+          else { start = adj(vals[0], L - 1n, -1n, L - 1n); stop = adj(vals[1], -1n, -1n, L - 1n); }
+          let r = ""; for (let k = start; step > 0n ? k < stop : k > stop; k += step) r += chars[Number(k)];
+          return S(r);
+        }
+        case "call": {
+          const f = ev(e.f);
+          const args = e.args.map(ev); const kw = {};
+          for (const [k, v] of e.kwargs) { if (k in kw) throw new PyErr("SyntaxError", `keyword argument repeated: ${k}`, e.line); kw[k] = ev(v); }
+          if (f.t === "method") return callMethod(f, args, kw, e.line);
+          if (f.t === "type") { if (!constructors[f.name]) throw unsupported(`Calling ${f.name}()`, e.line); return constructors[f.name](args, kw, e.line); }
+          if (f.t !== "func") throw new PyErr("TypeError", `'${tname(f)}' object is not callable`, e.line,
+            e.f.k === "name" && (builtins[e.f.n] || constructors[e.f.n]) ? `You stored a value in a variable called ${e.f.n}, so the ${e.f.n}() function no longer works. Use a different variable name.` : "");
+          return builtins[f.name](args, kw, e.line);
+        }
+      }
+      throw new PyErr("SyntaxError", "invalid syntax", e.line);
+    }
+    function seqHasNum(r, x) {
+      if (isIntLike(x)) { const v = big(x); if (r.step > 0n ? (v < r.start || v >= r.stop) : (v > r.start || v <= r.stop)) return false; return (v - r.start) % r.step === 0n; }
+      return seq(r, curLine).some(y => eq(y, x));
+    }
+    function callMethod(m, args, kw, line) {
+      const s = m.o.v, n = m.name;
+      if (Object.keys(kw).length) throw new PyErr("TypeError", `str.${n}() takes no keyword arguments`, line);
+      switch (n) {
+        case "upper": argc("str.upper", args, 0, 0, line); return S(s.toUpperCase());
+        case "lower": argc("str.lower", args, 0, 0, line); return S(s.toLowerCase());
+        case "isdigit": argc("str.isdigit", args, 0, 0, line); return B(/^\p{Nd}+$/u.test(s));
+        case "isalpha": argc("str.isalpha", args, 0, 0, line); return B(/^\p{L}+$/u.test(s));
+        case "isupper": argc("str.isupper", args, 0, 0, line); return B(/\p{Lu}/u.test(s) && !/\p{Ll}/u.test(s));
+        case "islower": argc("str.islower", args, 0, 0, line); return B(/\p{Ll}/u.test(s) && !/\p{Lu}/u.test(s));
+        case "title": { argc("str.title", args, 0, 0, line); let r = "", prev = false; for (const ch of s) { const cased = ch.toLowerCase() !== ch.toUpperCase(); r += cased ? (prev ? ch.toLowerCase() : ch.toUpperCase()) : ch; prev = cased; } return S(r); }
+        case "capitalize": { argc("str.capitalize", args, 0, 0, line); const c = cps(s); return S(c.length ? c[0].toUpperCase() + c.slice(1).join("").toLowerCase() : ""); }
+        case "strip": case "lstrip": case "rstrip": {
+          if (args.length > 1) throw new PyErr("TypeError", `${n} expected at most 1 argument, got ${args.length}`, line);
+          if (args.length && args[0].t !== "none" && args[0].t !== "str") throw new PyErr("TypeError", `${n} arg must be None or str`, line);
+          const chars = args.length && args[0].t === "str" ? args[0].v : null;
+          const isStrip = ch => chars === null ? /\s/.test(ch) : chars.includes(ch);
+          const c = cps(s); let a = 0, b = c.length;
+          if (n !== "rstrip") while (a < b && isStrip(c[a])) a++;
+          if (n !== "lstrip") while (b > a && isStrip(c[b - 1])) b--;
+          return S(c.slice(a, b).join(""));
+        }
+        case "count": case "find": case "startswith": case "endswith": {
+          if (!args.length) throw new PyErr("TypeError", `${n}() takes at least 1 argument (0 given)`, line);
+          if (args.length > 1) throw unsupported(`.${n}() with start/end positions`, line);
+          if (args[0].t !== "str") throw new PyErr("TypeError", n === "startswith" || n === "endswith" ? `${n} first arg must be str or a tuple of str, not ${tname(args[0])}` : `must be str, not ${tname(args[0])}`, line);
+          const sub = args[0].v;
+          if (n === "startswith") return B(s.startsWith(sub)); if (n === "endswith") return B(s.endsWith(sub));
+          if (n === "find") { const idx = s.indexOf(sub); return I(idx < 0 ? -1 : cps(s.slice(0, idx)).length); }
+          if (sub === "") return I(cps(s).length + 1); let c = 0, i = 0; while ((i = s.indexOf(sub, i)) !== -1) { c++; i += sub.length; } return I(c);
+        }
+        case "replace": {
+          if (args.length < 2) throw new PyErr("TypeError", `replace expected at least 2 arguments, got ${args.length}`, line);
+          if (args.length > 3) throw new PyErr("TypeError", `replace expected at most 3 arguments, got ${args.length}`, line);
+          if (args[0].t !== "str") throw new PyErr("TypeError", `replace() argument 1 must be str, not ${tname(args[0])}`, line);
+          if (args[1].t !== "str") throw new PyErr("TypeError", `replace() argument 2 must be str, not ${tname(args[1])}`, line);
+          if (args.length === 3) throw unsupported(".replace() with a count", line);
+          const a = args[0].v, b = args[1].v;
+          if (a === "") return S(b + cps(s).map(ch => ch + b).join(""));
+          return S(s.split(a).join(b));
+        }
+      }
+    }
+    function exec(stmts) {
+      for (const s of stmts) {
+        tick(s.line);
+        switch (s.k) {
+          case "pass": break;
+          case "break": throw new BreakSig();
+          case "continue": throw new ContinueSig();
+          case "expr": ev(s.e); break;
+          case "assign": { assigning = s.names[0]; const v = ev(s.value); assigning = null; for (const n of s.names) env.set(n, v); break; }
+          case "aug": {
+            if (!env.has(s.name)) throw new PyErr("NameError", `name '${s.name}' is not defined`, s.line, "Give " + s.name + " a starting value first, e.g. " + s.name + " = 0");
+            const v = ev(s.value); env.set(s.name, bin(s.op.slice(0, -1), env.get(s.name), v, s.line)); break;
+          }
+          case "if": {
+            if (truthy(ev(s.cond))) { exec(s.body); break; }
+            let done = false;
+            for (const b of s.elifs) { tick(b.line); if (truthy(ev(b.cond))) { exec(b.body); done = true; break; } }
+            if (!done && s.orelse) exec(s.orelse);
+            break;
+          }
+          case "for": {
+            const items = seq(ev(s.iter), s.line); let broke = false;
+            for (const v of items) {
+              tick(s.line); env.set(s.name, v);
+              try { exec(s.body); } catch (sig) { if (sig instanceof BreakSig) { broke = true; break; } if (sig instanceof ContinueSig) continue; throw sig; }
+            }
+            if (!broke && s.orelse) exec(s.orelse);
+            break;
+          }
+        }
+      }
+    }
+    try { exec(body); }
+    catch (e) { if (e instanceof PyErr) { if (!e.line) e.line = curLine; return { ok: false, error: e, output: out, log, inputsUsed: inPtr, env }; } throw e; }
+    return { ok: true, output: out, log, inputsUsed: inPtr, env };
+  }
+
+  // ---------- static analysis used by the game ----------
+  function analyse(src) {
+    let body; try { body = parse(src); } catch (e) { return null; }
+    const info = { hasFor: false, inputInLoop: false, inputOutsideLoop: 0, ops: new Set(), calls: new Set(), ifCount: 0, printInLoop: false };
+    const walkE = (e, inLoop) => {
+      if (!e || typeof e !== "object") return;
+      if (e.k === "cmp") e.ops.forEach(o => info.ops.add(o));
+      if (e.k === "bin") info.ops.add(e.op);
+      if (e.k === "call" && e.f.k === "name") {
+        info.calls.add(e.f.n);
+        if (e.f.n === "input") { if (inLoop) info.inputInLoop = true; else info.inputOutsideLoop++; }
+        if (e.f.n === "print" && inLoop) info.printInLoop = true;
+      }
+      for (const key of ["l", "r", "e", "first", "f", "obj", "idx", "cond", "body", "orelse"]) if (e[key] && e[key].k) walkE(e[key], inLoop);
+      for (const key of ["rest", "args", "parts"]) if (Array.isArray(e[key])) e[key].forEach(x => x && walkE(x, inLoop));
+      if (Array.isArray(e.kwargs)) e.kwargs.forEach(([, v]) => walkE(v, inLoop));
+    };
+    const walkS = (stmts, inLoop) => {
+      for (const s of stmts) {
+        if (s.k === "for") { info.hasFor = true; walkE(s.iter, inLoop); walkS(s.body, true); if (s.orelse) walkS(s.orelse, inLoop); continue; }
+        if (s.k === "if") { info.ifCount++; walkE(s.cond, inLoop); walkS(s.body, inLoop); s.elifs.forEach(b => { walkE(b.cond, inLoop); walkS(b.body, inLoop); }); if (s.orelse) walkS(s.orelse, inLoop); continue; }
+        if (s.e) walkE(s.e, inLoop); if (s.value) walkE(s.value, inLoop);
+      }
+    };
+    walkS(body, false);
+    return info;
+  }
+  return { run, analyse, PyErr, floatRepr };
+})();
+
+
+</script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// ================= LEVELS =================
+// mode "single": the program runs once per test rider (one rider per run, no loop needed).
+// mode "queue":  one run must check a whole queue, so input() must be inside a FOR loop.
+const T = (inputs, expected, type) => ({ inputs, expected, type });
+const LEVELS = [
+  { id: 1, zone: "Warm-up", title: "Open the gates", scene: "board",
+    story: "Visitors are waiting outside. The entrance screen needs a message.",
+    task: ["Print the message <code>PARK OPEN</code> exactly as shown."], outputs: ["PARK OPEN"],
+    starter: "# Print the message below this line\n", tests: [T([], ["PARK OPEN"])], par: 1,
+    hint: "Text goes inside quotation marks, inside the brackets of print( )." },
+  { id: 2, zone: "Warm-up", title: "Shoe check", scene: "riders", kind: "height", mode: "single", sign: ["Shoes add", "+2 cm"], alwaysBoard: true,
+    story: "The scanner reads a rider's height as text. Shoes add 2 cm.",
+    task: ["This code crashes. Fix the error and run it again.", "It should print the height plus 2."], outputs: ["a number"],
+    starter: 'height = input("Height: ")\nprint(height + 2)\n',
+    tests: [T(["118"], ["120"], "Normal"), T(["135"], ["137"], "Normal"), T(["98"], ["100"], "Normal")], par: 2,
+    hint: "input() always gives a string. Cast it to an integer by wrapping it in int( )." },
+  { id: 3, zone: "Warm-up", title: "Number the seats", scene: "seats",
+    story: "The new train has 6 seats. Each seat needs a number.",
+    task: ["Use a FOR loop to print the numbers 1 to 6, each on a new line."], outputs: ["1", "2", "…", "6"],
+    starter: "", tests: [T([], ["1", "2", "3", "4", "5", "6"])], needLoop: true, par: 2,
+    trap: (t, out) => out[0] === "0" ? "Your seats start at 0. In range(start, stop) the start is included, so start at 1."
+      : out.length === 5 && out[4] === "5" ? "Seat 6 is missing. The stop value is excluded, so the stop must be one more than 6." : null,
+    hint: "range(start, stop): start is included, stop is excluded. Print the loop variable inside the loop." },
+
+  { id: 4, zone: "Selection: IF", title: "Measure up", scene: "riders", kind: "height", mode: "single", measure: 120, sign: ["Riders must be", "120 cm+"],
+    story: "This coaster is fast. Riders must be tall enough to be safe.",
+    task: ["The height is read for you.", "If the height is 120 or more, print <code>RIDE</code>.", "Otherwise print nothing (for now)."], outputs: ["RIDE"],
+    starter: 'height = int(input("Height: "))\n# Write your IF statement below\n',
+    tests: [T(["150"], ["RIDE"], "Normal"), T(["100"], [], "Normal"), T(["120"], ["RIDE"], "Boundary"), T(["119"], [], "Boundary")], par: 3,
+    trap: (t, out) => t.inputs[0] === "120" && out.length === 0 ? "The rider who is exactly 120 cm was turned away. The rule is 120 or taller. Which operator includes 120?" : null,
+    hint: "Start the line with if, then the condition, then a colon. Indent the print on the next line by 4 spaces." },
+  { id: 5, zone: "Selection: IF", title: "Turn them away", scene: "riders", kind: "height", mode: "single", measure: 120, sign: ["Riders must be", "120 cm+"],
+    story: "Riders who are too short need to be told, not ignored.",
+    task: ["If the height is 120 or more, print <code>RIDE</code>.", "Else, print <code>STOP</code>."], outputs: ["RIDE", "STOP"],
+    starter: 'height = int(input("Height: "))\nif height >= 120:\n    print("RIDE")\n# Add an else below\n',
+    tests: [T(["150"], ["RIDE"], "Normal"), T(["100"], ["STOP"], "Normal"), T(["120"], ["RIDE"], "Boundary"), T(["119"], ["STOP"], "Boundary")], par: 5,
+    trap: (t, out) => t.inputs[0] === "120" && out[0] === "STOP" ? "The 120 cm rider was told STOP. The rule includes 120. Check your operator." : null,
+    hint: "else lines up exactly under if, with no spaces before it, and ends with a colon. Its print is indented." },
+  { id: 6, zone: "Selection: IF", title: "Drop tower", scene: "riders", kind: "age", mode: "single", sign: ["Riders must be", "18 and over"],
+    story: "The drop tower is extreme. The rule is 18 and over.",
+    task: ["Read the age and cast it to an integer.", "Print <code>RIDE</code> if the rider is 18 and over.", "Else print <code>STOP</code>."], outputs: ["RIDE", "STOP"],
+    starter: "# Read the age, then decide\n",
+    tests: [T(["30"], ["RIDE"], "Normal"), T(["17"], ["STOP"], "Boundary"), T(["18"], ["RIDE"], "Boundary"), T(["12"], ["STOP"], "Normal")], par: 5,
+    trap: (t, out) => t.inputs[0] === "18" && out[0] !== "RIDE" ? "The 18-year-old was turned away! \"18 and over\" includes 18. Did you use > instead of >= ?" : null,
+    hint: "Cast the input: age = int(input(\"Age: \")). Then use if and else with >=." },
+
+  { id: 7, zone: "Data types", title: "Scanner check", scene: "riders", kind: "height", mode: "single", sign: ["What type", "is it?"], alwaysBoard: true,
+    story: "The engineers think the scanner sends heights as text. Prove it.",
+    task: ["Read the height with <code>input()</code> and print its <code>type()</code>.", "Cast the height to an integer.", "Print its <code>type()</code> again."],
+    outputs: ["<class 'str'>", "<class 'int'>"], needCalls: ["type", "int"],
+    starter: 'height = input("Height: ")\n',
+    tests: [T(["135"], ["<class 'str'>", "<class 'int'>"], "Normal"), T(["98"], ["<class 'str'>", "<class 'int'>"], "Normal")], par: 4,
+    trap: (t, out) => out[0] === "<class 'int'>" ? "The first type printed was int. Print the type straight after input(), before you cast it." : null,
+    hint: "print(type(height)) shows the data type. height = int(height) casts it." },
+  { id: 8, zone: "Data types", title: "Ready to ride?", scene: "riders", kind: "height", mode: "single", measure: 120, sign: ["Riders must be", "120 cm+"], printType: "bool",
+    story: "The safety light needs a Boolean: True if the rider can ride, False if not.",
+    task: ["Read the height as an integer.", "Store the condition in a variable: <code>ready = height >= 120</code>", "Print <code>ready</code>."], outputs: ["True", "False"],
+    starter: 'height = int(input("Height: "))\n',
+    tests: [T(["150"], ["True"], "Normal"), T(["120"], ["True"], "Boundary"), T(["119"], ["False"], "Boundary"), T(["90"], ["False"], "Normal")], par: 3,
+    verdicts: { True: "board", False: "away" },
+    trap: (t, out) => t.inputs[0] === "120" && out[0] === "False" ? "120 cm gave False, but the rule is 120 or taller. Which operator includes 120?" : null,
+    hint: "A condition such as height >= 120 already evaluates to True or False. You do not need an if here." },
+  { id: 9, zone: "Data types", title: "Bag check", scene: "riders", kind: "bag", mode: "single", sign: ["Bags over", "5.0 kg"],
+    story: "Bags over 5.0 kg must go in a locker. The scales give weights like 4.5.",
+    task: ["Read the bag weight and cast it to a float.", "If it is over 5.0, print <code>LOCKER</code>.", "Else print <code>OK</code>."], outputs: ["LOCKER", "OK"],
+    starter: "# Read the weight, then decide\n",
+    tests: [T(["4.5"], ["OK"], "Normal"), T(["5.0"], ["OK"], "Boundary"), T(["5.1"], ["LOCKER"], "Boundary"), T(["7"], ["LOCKER"], "Normal")], par: 5,
+    verdicts: { OK: "board", LOCKER: "away" },
+    trap: (t, out) => t.inputs[0] === "5.0" && out[0] === "LOCKER" ? "A 5.0 kg bag was sent to the locker. \"Over 5.0\" does not include 5.0." : null,
+    errorTip: e => e.type === "ValueError" && /int\(\)/.test(e.msg) ? "Weights like 4.5 have a decimal point. Cast with float(), not int()." : null,
+    hint: "weight = float(input(\"Weight: \")). float() keeps the decimal part. Over means >." },
+  { id: 10, zone: "Data types", title: "Locker code", scene: "riders", kind: "code", mode: "single", sign: ["Codes are", "4 characters"],
+    story: "Locker codes must be exactly 4 characters long. Some codes start with 0.",
+    task: ["Read the code. Think: does it need casting?", "If the code is exactly 4 characters, print <code>VALID</code>.", "Else print <code>INVALID</code>."], outputs: ["VALID", "INVALID"],
+    needCalls: ["len"], starter: 'code = input("Code: ")\n',
+    tests: [T(["1234"], ["VALID"], "Normal"), T(["123"], ["INVALID"], "Boundary"), T(["12345"], ["INVALID"], "Boundary"), T(["0042"], ["VALID"], "Normal")], par: 5,
+    verdicts: { VALID: "board", INVALID: "away" },
+    trap: (t, out) => t.inputs[0] === "0042" && out[0] !== "VALID" ? "The code 0042 was rejected. If you cast it to int it becomes 42 and loses its zeros. Keep codes as strings." : null,
+    hint: "len(code) gives the number of characters in a string. Compare it with == 4." },
+
+  { id: 11, zone: "More operators", title: "Fast pass", scene: "riders", kind: "ticket", mode: "single", sign: ["Fast lane", "VIP only"],
+    story: "VIP ticket holders skip the queue. Everyone else waits.",
+    task: ["Read the ticket type.", "If it is <code>VIP</code>, print <code>FAST</code>.", "Else print <code>QUEUE</code>."], outputs: ["FAST", "QUEUE"],
+    starter: 'ticket = input("Ticket: ")\n',
+    tests: [T(["VIP"], ["FAST"], "Normal"), T(["STANDARD"], ["QUEUE"], "Normal"), T(["FAMILY"], ["QUEUE"], "Normal")], par: 5,
+    verdicts: { FAST: "board", QUEUE: "away" },
+    errorTip: e => e.type === "ValueError" ? "Tickets are text, not numbers, so this input does not need casting." : null,
+    hint: "Compare text with == and put the text in quotation marks, e.g. ticket == \"VIP\"" },
+  { id: 12, zone: "More operators", title: "Weather check", scene: "riders", kind: "weather", mode: "single", sign: ["Opens only", "when sunny"],
+    story: "The big wheel only opens when it is sunny.",
+    task: ["Read the weather.", "Use <code>!=</code>: if the weather is not <code>sunny</code>, print <code>CLOSED</code>.", "Else print <code>OPEN</code>."], outputs: ["OPEN", "CLOSED"],
+    starter: 'weather = input("Weather: ")\n', needOps: ["!="],
+    tests: [T(["sunny"], ["OPEN"], "Normal"), T(["rain"], ["CLOSED"], "Normal"), T(["snow"], ["CLOSED"], "Normal"), T(["windy"], ["CLOSED"], "Normal")], par: 5,
+    verdicts: { OPEN: "board", CLOSED: "away" },
+    hint: "!= means \"not equal to\". Text needs quotation marks: \"sunny\"" },
+  { id: 13, zone: "More operators", title: "Mini coaster", scene: "riders", kind: "height", mode: "single", measure: 140, sign: ["Maximum", "140 cm"],
+    story: "The mini coaster is built for children. Riders must be 140 cm or shorter.",
+    task: ["Read the height as an integer.", "Print <code>RIDE</code> if the height is 140 or less.", "Else print <code>STOP</code>."], outputs: ["RIDE", "STOP"],
+    starter: "# Read the height, then decide\n",
+    tests: [T(["100"], ["RIDE"], "Normal"), T(["140"], ["RIDE"], "Boundary"), T(["141"], ["STOP"], "Boundary"), T(["160"], ["STOP"], "Normal")], par: 5,
+    trap: (t, out) => t.inputs[0] === "140" && out[0] !== "RIDE" ? "\"140 or shorter\" includes 140. Which operator means less than or equal to?" : null,
+    hint: "Less than or equal to is <= (the = always goes second)." },
+
+  { id: 14, zone: "Loops + selection", title: "Rush hour", scene: "riders", kind: "height", mode: "queue", riderLines: true, measure: 120, sign: ["Riders must be", "120 cm+"],
+    story: "Five riders arrive at once. Check them all in one run.",
+    task: ["Use a FOR loop that repeats 5 times.", "Inside the loop: read a height, then print <code>RIDE</code> or <code>STOP</code>."], outputs: ["RIDE", "STOP"],
+    starter: "for i in range(5):\n    # read a height, then decide\n",
+    tests: [T(["130", "110", "120", "95", "160"], ["RIDE", "STOP", "RIDE", "STOP", "RIDE"], "Queue 1"),
+      T(["119", "121", "150", "80", "200"], ["STOP", "RIDE", "RIDE", "STOP", "RIDE"], "Queue 2")], par: 6,
+    noMoreInput: "There are only 5 riders. Make sure input() runs once each time the loop repeats.",
+    hint: "Everything that should happen for each rider must be indented inside the for loop. The if inside the loop is indented again." },
+  { id: 15, zone: "Loops + selection", title: "Rider counter", scene: "riders", kind: "height", mode: "queue", riderLines: true, measure: 120, sign: ["Riders must be", "120 cm+"], score: "Riders",
+    story: "The manager wants to know how many people rode.",
+    task: ["Check 5 riders like before.", "Each time someone rides, add 1 to <code>count</code>.", "After the loop, print <code>count</code>."], outputs: ["RIDE", "STOP", "then a number"],
+    starter: 'count = 0\nfor i in range(5):\n    height = int(input("Height: "))\n',
+    tests: [T(["130", "110", "120", "95", "160"], ["RIDE", "STOP", "RIDE", "STOP", "RIDE", "3"], "Queue 1"),
+      T(["125", "90", "100", "105", "140"], ["RIDE", "STOP", "STOP", "STOP", "RIDE", "2"], "Queue 2")], par: 9,
+    noMoreInput: "There are only 5 riders. Make sure input() runs once each time the loop repeats.",
+    trap: (t, out) => {
+      if (out.filter(l => /^\d+$/.test(l)).length > 1) return "count was printed more than once. Should print(count) be inside the loop or after it?";
+      if (out[out.length - 1] === "0") return "count stayed at 0. Add count = count + 1 inside the if, under the RIDE line.";
+      return null;
+    },
+    hint: "count = count + 1 goes inside the if (indented under it). print(count) goes after the loop, with no indentation." },
+  { id: 16, zone: "Loops + selection", title: "Any VIPs?", scene: "riders", kind: "ticket", mode: "queue", riderLines: false, alwaysBoard: true, score: "VIP found:", printType: "bool", sign: ["Looking for", "any VIP"],
+    story: "Security needs to know if any VIP is in the queue. One True or False at the end.",
+    task: ["Before the loop: <code>vip_found = False</code>", "Loop 5 times: read a ticket. If it is <code>VIP</code>, set <code>vip_found = True</code>.", "After the loop, print <code>vip_found</code>."], outputs: ["True", "False"],
+    starter: "vip_found = False\n",
+    tests: [T(["STANDARD", "FAMILY", "VIP", "STANDARD", "FAMILY"], ["True"], "Queue 1"), T(["STANDARD", "FAMILY", "STANDARD", "STANDARD", "FAMILY"], ["False"], "Queue 2"),
+      T(["VIP", "STANDARD", "STANDARD", "FAMILY", "STANDARD"], ["True"], "Queue 3")], par: 6,
+    noMoreInput: "There are only 5 tickets. Make sure input() runs once each time the loop repeats.",
+    trap: (t, out) => out.length > 1 ? "vip_found was printed more than once. Print it once, after the loop has finished."
+      : t.expected[0] === "True" && out[0] === "False" ? "A VIP was in this queue, but vip_found ended as False. Did a later ticket set it back to False? Only change it inside the if, and never use an else here." : null,
+    hint: "Only set vip_found = True inside the if. Never set it back to False inside the loop, or a later ticket could undo it." },
+  { id: 17, zone: "Boss level", title: "Ticket booth", scene: "riders", kind: "age", mode: "queue", riderLines: false, alwaysBoard: true, riderFrom: 1, sign: ["Under 12", "£3"], score: "Total £",
+    story: "Groups buy tickets together. Children under 12 pay £3. Everyone else pays £5.",
+    task: ["Read how many people are in the group.", "Loop once per person and read their age.", "Add 3 to <code>total</code> if they are under 12, else add 5.", "After the loop, print <code>total</code>."], outputs: ["a number"],
+    starter: 'total = 0\npeople = int(input("How many people? "))\n',
+    tests: [T(["3", "10", "15", "40"], ["13"], "Group of 3"), T(["2", "11", "12"], ["8"], "Group of 2"), T(["4", "5", "6", "30", "70"], ["16"], "Group of 4")], par: 9,
+    noMoreInput: "Your loop asked for more people than are in the group. Use the number of people in range().",
+    trap: (t, out, used) => {
+      if (t.inputs[2] === "12" && out[out.length - 1] === "6") return "The 12-year-old paid £3. \"Under 12\" does not include 12. Check < compared with <=.";
+      if (used < t.inputs.length) return "Your loop did not read every person. Use range(people) so it repeats once per person.";
+      return null;
+    },
+    hint: "for i in range(people): repeats once per person. Read each age inside the loop. Use total = total + 3 (or + 5)." },
+];
+const VERDICT = { RIDE: "board", FAST: "board", OPEN: "board", STOP: "away", QUEUE: "away", CLOSED: "away" };
+const COLORS = ["#2E9E5B", "#3D7DD8", "#8E5BD6", "#E07A1F", "#1BA6A6", "#D6457A", "#6A8D1F"];
+const SKIN = ["#F2C7A0", "#C98E62", "#8A5A3B", "#F6D7B8", "#A86E48"];
+
+// ================= STORAGE =================
+const KEY = "pythonpark.v2";
+let save = { medals: {}, code: {}, current: 1 };
+try { const raw = localStorage.getItem(KEY); if (raw) save = Object.assign(save, JSON.parse(raw)); } catch (e) {}
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} };
+
+// ================= EDITOR =================
+const ta = $("code"), hl = $("hl"), gut = $("gutter"), errLine = $("errLine");
+function highlight(src) {
+  return src.split("\n").map(line => {
+    const lead = line.match(/^ */)[0].length; let html = "";
+    for (let i = 0; i < lead; i += 4) html += '<span class="indent-guide">' + " ".repeat(Math.min(4, lead - i)) + "</span>";
+    const rest = line.slice(lead);
+    const re = /("[^"]*"?|'[^']*'?)|(#.*$)|\b(if|elif|else|for|in|and|or|not|True|False|None|while|break|continue|pass|is)\b|\b(\d+(?:\.\d+)?)\b|([A-Za-z_]\w*)(?=\s*\()|([A-Za-z_]\w*)|(\s+)|(.)/g;
+    let mm;
+    while ((mm = re.exec(rest))) {
+      const t = esc(mm[0]);
+      if (mm[1]) html += '<span class="tok-str">' + t + "</span>";
+      else if (mm[2]) html += '<span class="tok-com">' + t + "</span>";
+      else if (mm[3]) html += '<span class="tok-kw">' + t + "</span>";
+      else if (mm[4]) html += '<span class="tok-num">' + t + "</span>";
+      else if (mm[5]) html += '<span class="tok-fn">' + t + "</span>";
+      else html += t;
+    }
+    return html;
+  }).join("\n") + "\n";
+}
+function refresh() {
+  hl.innerHTML = highlight(ta.value);
+  const n = ta.value.split("\n").length;
+  gut.textContent = Array.from({ length: Math.max(n, 10) }, (_, i) => i + 1).join("\n");
+  ta.style.height = "auto"; ta.style.height = Math.max(ta.scrollHeight, 276) + "px";
+  ta.style.width = "100%"; const w = Math.max(ta.parentElement.clientWidth, ta.scrollWidth); ta.style.width = w + "px"; hl.style.width = w + "px";
+  errLine.style.display = "none";
+}
+let trapTab = true;
+ta.addEventListener("input", () => { refresh(); save.code[level.id] = ta.value; persist(); });
+ta.addEventListener("keydown", e => {
+  const v = ta.value, s = ta.selectionStart, en = ta.selectionEnd;
+  const lineStart = v.lastIndexOf("\n", s - 1) + 1;
+  const insert = (txt, from = s, to = en) => { ta.setRangeText(txt, from, to, "end"); ta.dispatchEvent(new Event("input")); };
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runLevel(); return; }
+  if (e.key === "Escape") { trapTab = false; return; }
+  if (e.key === "Tab" && trapTab) {
+    e.preventDefault();
+    if (e.shiftKey) { const lead = v.slice(lineStart).match(/^ {1,4}/); if (lead) { ta.setRangeText("", lineStart, lineStart + lead[0].length, "end"); ta.dispatchEvent(new Event("input")); } }
+    else insert("    ");
+    return;
+  }
+  trapTab = true;
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const line = v.slice(lineStart, s); let ind = line.match(/^ */)[0];
+    if (/:\s*(#.*)?$/.test(line)) ind += "    ";
+    insert("\n" + ind); return;
+  }
+  if (e.key === "Backspace" && s === en && s > lineStart) {
+    const before = v.slice(lineStart, s);
+    if (/^ +$/.test(before) && before.length % 4 === 0) { e.preventDefault(); ta.setRangeText("", s - 4, s, "end"); ta.dispatchEvent(new Event("input")); }
+  }
+});
+function showErrLine(n) { if (!n) return; errLine.style.top = 12 + (n - 1) * 28 + "px"; errLine.style.display = "block"; }
+
+// ================= SCENE =================
+const scene = $("scene");
+const W = 680, H = 300;
+let stage;
+function fitStage() { if (!stage) return; const s = scene.clientWidth / W; stage.style.transform = `scale(${s})`; scene.style.height = H * s + "px"; }
+window.addEventListener("resize", fitStage);
+const speed = () => parseFloat($("speed").value);
+const sleep = ms => new Promise(r => setTimeout(r, ms * speed() * (matchMedia("(prefers-reduced-motion: reduce)").matches ? 0.3 : 1)));
+
+const TRACK = `<svg class="track" viewBox="0 0 360 230" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 200 C 60 200, 80 40, 150 40 S 230 170, 280 120 S 340 30, 370 60" fill="none" stroke="#1C2541" stroke-width="7"/>
+  <path d="M0 212 C 60 212, 84 52, 150 52 S 226 182, 282 132 S 342 42, 370 72" fill="none" stroke="#1C2541" stroke-width="3" stroke-dasharray="4 8"/>
+  <g stroke="#1C2541" stroke-width="4"><line x1="150" y1="52" x2="150" y2="230"/><line x1="230" y1="150" x2="230" y2="230"/><line x1="320" y1="70" x2="320" y2="230"/><line x1="70" y1="150" x2="70" y2="230"/></g></svg>`;
+
+function valueTag(kind, v) {
+  if (kind === "height") return v + " cm";
+  if (kind === "age") return "Age " + v;
+  if (kind === "bag") return "Bag " + v + " kg";
+  if (kind === "code") return "Code " + v;
+  if (kind === "weather") return ({ sunny: "☀️ ", rain: "🌧️ ", snow: "❄️ ", windy: "💨 " }[v] || "") + v;
+  return v;
+}
+function riderPx(kind, v, i) {
+  if (kind === "height") return Math.max(60, Math.min(190, +v)) * 0.82;
+  if (kind === "age") return Math.min(178, 75 + (+v) * 6) * 0.82;
+  return [140, 165, 128, 152, 170][i % 5] * 0.82;
+}
+function buildScene(lv, riders, label) {
+  scene.innerHTML = "";
+  stage = document.createElement("div");
+  stage.style.cssText = `position:absolute;left:0;top:0;width:${W}px;height:${H}px;transform-origin:0 0;`;
+  scene.appendChild(stage);
+  const add = html => { stage.insertAdjacentHTML("beforeend", html); return stage.lastElementChild; };
+  if (lv.scene === "board") {
+    add(`<div class="ground"></div>`);
+    add(`<div class="board"><div class="arch">Python Park entrance</div><div class="screen" id="screen">· · ·</div><div class="posts"><i></i><i></i></div></div>`);
+  } else if (lv.scene === "seats") {
+    add(TRACK); add(`<div class="ground"></div>`);
+    const tr = add(`<div class="train" style="right:auto;left:80px;bottom:52px"></div>`);
+    for (let i = 1; i <= 6; i++) tr.insertAdjacentHTML("beforeend", `<div class="car" style="width:72px;height:48px"><span class="num">${i}</span></div>`);
+  } else {
+    add(TRACK); add(`<div class="path"></div>`); add(`<div class="ground" style="left:78%"></div>`);
+    if (label) add(`<div class="queue-label">${esc(label)}</div>`);
+    if (lv.measure) {
+      const px = lv.measure * 0.82;
+      add(`<div class="measure" style="display:block;left:280px;height:${Math.round(px + 26)}px"><div class="mark" style="bottom:${Math.round(px)}px"><span>${lv.measure}</span></div></div>`);
+    }
+    if (lv.sign) add(`<div class="sign" style="left:420px;height:200px"><div class="sign-board"><div class="s1">${esc(lv.sign[0])}</div><div class="s2">${esc(lv.sign[1])}</div></div><div class="sign-post"></div></div>`);
+    const tr = add(`<div class="train" id="train"></div>`);
+    for (let c = 0; c < 2; c++) tr.insertAdjacentHTML("beforeend", `<div class="car"><span class="seat"></span><span class="seat"></span></div>`);
+    if (lv.score) add(`<div class="scoreboard" id="score">${esc(lv.score)}<b id="scoreVal">?</b></div>`);
+    riders.forEach((r, i) => {
+      const v = r.v, ci = r.c ?? i;
+      const px = riderPx(lv.kind, v, ci), body = Math.max(30, px - 26);
+      add(`<div class="rider" data-i="${i}" style="left:${16 + i * 54}px">
+        <div class="bubble"></div><div class="verdict"></div>
+        <div class="tag">${esc(valueTag(lv.kind, v))}</div>
+        <div class="head" style="background:${SKIN[ci % SKIN.length]}"></div>
+        <div class="body" style="height:${body}px;background:${COLORS[ci % COLORS.length]}"></div></div>`);
+    });
+  }
+  fitStage();
+}
+const riderEl = i => stage.querySelector(`.rider[data-i="${i}"]`);
+let seatsUsed = 0;
+function sitDown() { const seats = stage.querySelectorAll(".seat"); if (seats[seatsUsed]) seats[seatsUsed].classList.add("on"); seatsUsed++; }
+async function processRider(i, outText, verdict, correct) {
+  const el = riderEl(i); if (!el) return;
+  stage.querySelectorAll(".rider").forEach(r => { const k = +r.dataset.i; if (k > i && !r.classList.contains("gone")) r.style.left = 16 + (k - i - 1) * 54 + "px"; });
+  el.style.left = "310px"; await sleep(600);
+  const b = el.querySelector(".bubble");
+  b.textContent = outText === null ? "…" : outText; b.style.color = outText === null ? "#8A93AD" : ""; b.classList.add("show");
+  await sleep(750);
+  const vd = el.querySelector(".verdict"); vd.className = "verdict " + (correct ? "ok" : "bad"); vd.textContent = correct ? "✓" : "✗";
+  await sleep(450);
+  b.classList.remove("show");
+  if (verdict === "board") { el.style.left = "560px"; await sleep(550); el.style.opacity = 0; sitDown(); }
+  else el.classList.add("away");
+  el.classList.add("gone");
+  await sleep(250);
+}
+
+// ================= RUN =================
+const consoleEl = $("console");
+const cprint = html => { consoleEl.insertAdjacentHTML("beforeend", html); consoleEl.scrollTop = consoleEl.scrollHeight; };
+const logEvent = ev => ev.kind === "in" ? cprint(`<span class="in">${esc(ev.prompt)}<b>${esc(ev.value)}</b></span>\n`) : cprint(esc(ev.text));
+function showError(err, lv) {
+  if (err.type === "NotSupported") cprint(`<span class="err">Line ${err.line}: ${esc(err.msg)}</span>\n`);
+  else cprint(`<span class="err">${esc(err.type)} on line ${err.line}: ${esc(err.msg)}</span>\n`);
+  const tip = (lv.errorTip && lv.errorTip(err)) || err.hint;
+  if (tip) cprint(`<span class="tip">💡 ${esc(tip)}</span>\n`);
+  showErrLine(err.line);
+}
+const linesOf = s => { const a = s.split("\n").map(x => x.replace(/\s+$/, "")); while (a.length && a[a.length - 1] === "") a.pop(); return a; };
+const eqArr = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const codeLines = c => c.split("\n").filter(l => l.trim() && !l.trim().startsWith("#")).length;
+const OPNAME = { "!=": "!= (not equal to)", "==": "== (equal to)", ">=": ">=", "<=": "<=" };
+
+function structuralProblem(lv, code) {
+  const info = PY.analyse(code); if (!info) return null;
+  if (lv.mode === "queue") {
+    if (!info.hasFor) return "This queue has several riders, so one run must check them all. Use a FOR loop. Without a loop, your code only runs once.";
+    if (!info.inputInLoop) return "Read each rider with input() inside the FOR loop. Code that is not indented inside the loop only runs once.";
+  }
+  if (lv.needLoop && !info.hasFor) return "This level asks you to use a FOR loop.";
+  for (const op of lv.needOps || []) if (!info.ops.has(op)) return `This level asks you to use ${OPNAME[op] || op} in your condition.`;
+  for (const fn of lv.needCalls || []) if (!info.calls.has(fn)) return `This level asks you to use ${fn}().`;
+  return null;
+}
+
+let running = false;
+async function runLevel() {
+  if (running) return;
+  const lv = level, code = ta.value;
+  running = true; ["btnRun", "btnLevels", "btnReset"].forEach(id => $(id).disabled = true); consoleEl.innerHTML = ""; errLine.style.display = "none";
+  try {
+    const runs = lv.tests.map(t => PY.run(code, t.inputs, { noMoreInput: lv.noMoreInput }));
+    if (runs[0].parseError) { showError(runs[0].error, lv); renderResults(lv, null, runs, "Fix the error shown in the console, then run again."); return; }
+    const prob = structuralProblem(lv, code);
+    if (prob) { cprint(`<span class="tip">💡 ${esc(prob)}</span>\n`); renderResults(lv, null, runs, prob); return; }
+
+    const evals = lv.tests.map((t, i) => {
+      const r = runs[i], out = linesOf(r.output);
+      const printed = r.log.filter(e => e.kind === "out");
+      const typeOk = !lv.printType || printed.every(e => e.types.length === 1 && e.types[0] === lv.printType);
+      const ok = !r.error && eqArr(out, t.expected) && r.inputsUsed === t.inputs.length && typeOk;
+      let msg = null;
+      if (!ok) {
+        if (!r.error && eqArr(out, t.expected) && !typeOk) { const wrong = printed.map(e => e.types[0]).find(x => x !== lv.printType); msg = wrong === "str" ? "The output looks right, but you printed a string (text in quotation marks), not a Boolean. Print the Boolean value itself: no quotation marks." : "The output looks right, but the value printed was not a Boolean."; }
+        if (!msg) msg = (lv.trap && lv.trap(t, out, r.inputsUsed)) || null;
+        if (!msg && r.error) msg = "Your program stopped with an error. Read the message in the console.";
+        if (!msg && out.length === t.expected.length && out.every((x, k) => x.toLowerCase().replace(/\s+/g, " ") === t.expected[k].toLowerCase())) msg = "Nearly! Your output must match exactly, including capital letters and spaces.";
+        if (!msg && r.inputsUsed < t.inputs.length) msg = "Your program did not read every input.";
+        if (!msg) msg = `For ${describe(lv, t)}, the expected output was ${fmtLines(t.expected)} but your program printed ${fmtLines(out)}.`;
+      }
+      return { ok, out, msg };
+    });
+
+    if (lv.scene === "board") {
+      buildScene(lv, []); runs[0].log.forEach(logEvent);
+      await sleep(300); const sc = stage.querySelector("#screen"); const out = evals[0].out;
+      sc.textContent = out.length ? out.join(" ") : "· · ·"; if (evals[0].ok) sc.classList.add("lit");
+      if (runs[0].error) showError(runs[0].error, lv);
+      await sleep(600);
+    } else if (lv.scene === "seats") {
+      buildScene(lv, []); runs[0].log.forEach(logEvent);
+      const nums = stage.querySelectorAll(".num");
+      for (const l of evals[0].out) { const k = parseInt(l, 10); if (nums[k - 1] && String(k) === l) nums[k - 1].classList.add("lit"); await sleep(260); }
+      if (runs[0].error) showError(runs[0].error, lv);
+    } else if (lv.mode === "single") {
+      // one rider per run: the scene is cleared and the program starts again for each test
+      seatsUsed = 0;
+      for (let i = 0; i < lv.tests.length; i++) {
+        const r = runs[i], ev = evals[i];
+        buildScene(lv, [{ v: lv.tests[i].inputs[0], c: i }], `Run ${i + 1} of ${lv.tests.length}`);
+        cprint(`<span class="sep">— Run ${i + 1} of ${lv.tests.length}: the program starts again —</span>\n`);
+        await sleep(350);
+        r.log.forEach(logEvent);
+        if (r.error) { showError(r.error, lv); const el = riderEl(0); el.style.left = "310px"; await sleep(500); const b = el.querySelector(".bubble"); b.textContent = "💥 error"; b.classList.add("show"); break; }
+        const outText = ev.out.length ? ev.out.join(" / ") : null;
+        const map = lv.verdicts || VERDICT;
+        const verdict = lv.alwaysBoard ? "board" : (map[ev.out[0]] || "away");
+        await processRider(0, outText, verdict, ev.ok);
+        await sleep(ev.ok ? 250 : 900);
+        if (!ev.ok) break;
+      }
+    } else {
+      // queue: one run checks several riders
+      for (let i = 0; i < lv.tests.length; i++) {
+        const t = lv.tests[i], r = runs[i], ev = evals[i];
+        const riders = t.inputs.slice(lv.riderFrom || 0).map(v => ({ v }));
+        buildScene(lv, riders, `${t.type}: one run`); seatsUsed = 0; await sleep(300);
+        cprint(`<span class="sep">— ${esc(t.type)}: one run checks the whole queue —</span>\n`);
+        let lp = 0, seen = 0;
+        const logUntil = k => { while (lp < r.log.length && seen < k) { const e2 = r.log[lp++]; logEvent(e2); if (e2.kind === "out") seen += (e2.text.match(/\n/g) || []).length; } };
+        if (lv.riderLines) {
+          for (let j = 0; j < riders.length; j++) {
+            if (j >= ev.out.length && r.error) break;
+            logUntil(j + 1);
+            const o = ev.out[j] ?? null;
+            await processRider(j, o, VERDICT[o] || "away", o === t.expected[j]);
+          }
+        } else if (!r.error) {
+          for (let j = 0; j < riders.length; j++) await processRider(j, "checked", "board", true);
+        }
+        logUntil(Infinity);
+        if (lv.score) {
+          const sb = stage.querySelector("#score"); sb.style.display = "block";
+          const extra = ev.out.slice(lv.riderLines ? riders.length : 0);
+          stage.querySelector("#scoreVal").textContent = extra.length ? extra.join(" ") : "?";
+          sb.style.background = ev.ok ? "var(--green)" : "var(--red)"; sb.style.color = "#fff";
+        }
+        if (r.error) { showError(r.error, lv); break; }
+        await sleep(ev.ok ? 700 : 1200);
+        if (!ev.ok) break;
+      }
+    }
+    const allOk = evals.every(e => e.ok);
+    renderResults(lv, evals, runs, allOk ? null : evals.find(e => !e.ok).msg);
+    if (allOk) {
+      const train = stage && stage.querySelector(".train"); if (train) { await sleep(200); train.classList.add("go"); }
+      confetti(); await sleep(900); win(lv, code);
+    }
+  } finally { running = false; ["btnRun", "btnLevels", "btnReset"].forEach(id => $(id).disabled = false); }
+}
+function describe(lv, t) {
+  if (lv.mode === "single") return "the rider with " + valueTag(lv.kind, t.inputs[0]).replace(/^Age /, "age ").replace(/^Bag /, "a bag of ").replace(/^Code /, "code ");
+  if (lv.mode === "queue") return t.type.toLowerCase();
+  return "this program";
+}
+const fmtLines = a => (a.length ? a.map(x => `"${x}"`).join(", ") : "nothing");
+
+function renderResults(lv, evals, runs, msg) {
+  const box = $("results");
+  let html = `<h3>${lv.mode === "queue" ? "Test queues" : "Test runs"}</h3>`;
+  if (evals) {
+    html += `<table class="res"><thead><tr><th>${lv.mode === "single" ? "Run" : "Input"}</th><th>Expected</th><th>Your output</th><th></th></tr></thead><tbody>`;
+    lv.tests.forEach((t, i) => {
+      const e = evals[i];
+      const inp = lv.mode === "single" ? `Run ${i + 1}: ` + esc(valueTag(lv.kind, t.inputs[0])) + `<br><span class="tdtype">${esc(t.type)}</span>`
+        : lv.mode === "queue" ? `<span class="tdtype">${esc(t.type)}</span><br>` + esc(t.inputs.slice(lv.riderFrom || 0).join(", ")) : "One run";
+      const notRun = i > 0 && evals.slice(0, i).some(x => !x.ok) && lv.scene === "riders";
+      html += `<tr><td>${inp}</td><td class="mono">${esc(t.expected.join("\n") || "(nothing)")}</td><td class="mono">${runs[i].error ? "<em>error</em>" : esc(e.out.join("\n") || "(nothing)")}</td>
+        <td><span class="pill ${e.ok ? "ok" : "bad"}">${e.ok ? "✓ pass" : "✗ fail"}</span>${notRun ? '<br><span class="tdtype">not animated</span>' : ""}</td></tr>`;
+    });
+    html += "</tbody></table>";
+  } else html += `<p class="res-empty">Nothing was tested yet.</p>`;
+  html += `<div class="feedback ${msg ? "show" : "show good"}">${esc(msg || "Every test passed. Brilliant operating!")}</div>`;
+  box.innerHTML = html;
+}
+
+// ================= UI =================
+let level = LEVELS.find(l => l.id === save.current) || LEVELS[0];
+function medalFor(lv, code) { const n = codeLines(code); return n <= lv.par ? "gold" : n <= lv.par + 2 ? "silver" : "bronze"; }
+const MEDAL = { gold: "🥇", silver: "🥈", bronze: "🥉" };
+const rank = { bronze: 1, silver: 2, gold: 3 };
+function updateMedals() {
+  const v = Object.values(save.medals); const c = k => v.filter(x => x === k).length;
+  $("medalCount").textContent = `🥇 ${c("gold")}   🥈 ${c("silver")}   🥉 ${c("bronze")}`;
+}
+function loadLevel(lv) {
+  level = lv; save.current = lv.id; persist();
+  $("lvlTitle").innerHTML = `<span>Level ${lv.id} of ${LEVELS.length}</span>${esc(lv.title)}`;
+  const modeNote = lv.mode === "single" ? `<p class="mode">One rider per run. The game runs your program again for each test rider.</p>`
+    : lv.mode === "queue" ? `<p class="mode queue">The whole queue in one run. You need a FOR loop with input() inside it.</p>` : "";
+  $("mission").innerHTML = `<h2>${esc(lv.title)}</h2><p class="story">${esc(lv.story)}</p>${modeNote}
+    <ol class="task">${lv.task.map(t => `<li>${t}</li>`).join("")}</ol>
+    <div class="chips">Outputs: ${lv.outputs.map(o => `<span class="chip">${esc(o)}</span>`).join("")}</div>`;
+  ta.value = save.code[lv.id] ?? lv.starter; refresh();
+  $("hintBox").className = "hint"; $("hintBox").textContent = lv.hint;
+  consoleEl.innerHTML = '<span class="sep">Output appears here when you run your code.</span>';
+  $("results").innerHTML = `<h3>${lv.mode === "queue" ? "Test queues" : "Test runs"}</h3><p class="res-empty">Press Run to test your program.</p>`;
+  const preview = lv.mode === "single" ? [{ v: lv.tests[0].inputs[0], c: 0 }] : lv.mode === "queue" ? lv.tests[0].inputs.slice(lv.riderFrom || 0).map(v => ({ v })) : [];
+  buildScene(lv, preview, lv.mode === "single" ? `Run 1 of ${lv.tests.length}` : lv.mode === "queue" ? `${lv.tests[0].type}: one run` : null); seatsUsed = 0;
+}
+function openOv(id) { $(id).classList.add("show"); const c = $(id).querySelector("button"); if (c) c.focus(); }
+function closeOv(id) { $(id).classList.remove("show"); }
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeOv(b.closest(".overlay").id)));
+document.querySelectorAll(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) closeOv(o.id); }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.querySelectorAll(".overlay.show").forEach(o => closeOv(o.id)); });
+
+function renderLevels() {
+  let html = "", zone = "";
+  for (const lv of LEVELS) {
+    if (lv.zone !== zone) { if (zone) html += "</div>"; zone = lv.zone; html += `<div class="zone">${esc(zone)}</div><div class="levels">`; }
+    const m = save.medals[lv.id];
+    html += `<button class="lvl ${lv.id === level.id ? "current" : ""}" data-id="${lv.id}"><span class="n">Level ${lv.id}</span><span class="t">${esc(lv.title)}</span><span class="m">${m ? MEDAL[m] + " " + m : "Not completed"}</span></button>`;
+  }
+  $("levelGrid").innerHTML = html + "</div>";
+  $("levelGrid").querySelectorAll(".lvl").forEach(b => b.addEventListener("click", () => { closeOv("ovLevels"); loadLevel(LEVELS.find(l => l.id === +b.dataset.id)); }));
+}
+function win(lv, code) {
+  const m = medalFor(lv, code), n = codeLines(code);
+  if (!save.medals[lv.id] || rank[m] > rank[save.medals[lv.id]]) save.medals[lv.id] = m;
+  persist(); updateMedals();
+  const nextLv = LEVELS.find(l => l.id === lv.id + 1);
+  $("winBox").innerHTML = `<h2>Level complete</h2><div class="medal">${MEDAL[m]}</div>
+    <p><strong>${esc(lv.title)}</strong> solved in ${n} line${n === 1 ? "" : "s"} of code.</p>
+    <p>${m === "gold" ? "Gold: a clean, short solution." : `Gold needs ${lv.par} line${lv.par === 1 ? "" : "s"} or fewer. Can you make it shorter?`}</p>
+    ${nextLv ? `<button class="btn btn-primary" id="btnNext">Next level: ${esc(nextLv.title)}</button>` : `<p><strong>You have finished every level in Python Park!</strong></p>`}
+    <div><button class="btn btn-ghost" id="btnStay" style="margin-top:10px">Stay on this level</button></div>`;
+  openOv("ovWin");
+  if (nextLv) $("btnNext").addEventListener("click", () => { closeOv("ovWin"); loadLevel(nextLv); });
+  $("btnStay").addEventListener("click", () => closeOv("ovWin"));
+}
+function confetti() {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const cols = ["#D62839", "#FFC93C", "#2E9E5B", "#3D7DD8", "#8E5BD6"];
+  for (let i = 0; i < 60; i++) {
+    const d = document.createElement("div"); d.className = "confetti";
+    d.style.left = Math.random() * 100 + "vw"; d.style.background = cols[i % cols.length];
+    d.style.animationDelay = Math.random() * 0.5 + "s"; d.style.animationDuration = 1.4 + Math.random() + "s";
+    document.body.appendChild(d); setTimeout(() => d.remove(), 3200);
+  }
+}
+
+$("btnRun").addEventListener("click", runLevel);
+$("btnReset").addEventListener("click", () => { if (confirm("Reset this level's code to the starting code?")) { ta.value = level.starter; delete save.code[level.id]; persist(); refresh(); } });
+$("btnHint").addEventListener("click", () => $("hintBox").classList.toggle("show"));
+$("btnLevels").addEventListener("click", () => { renderLevels(); openOv("ovLevels"); });
+$("btnHelp").addEventListener("click", () => openOv("ovHelp"));
+updateMedals(); loadLevel(level);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(refresh);
+})();
+
+</script>
+</body>
+</html>
